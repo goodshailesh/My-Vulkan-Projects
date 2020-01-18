@@ -23,10 +23,50 @@ func main() {
 	vk.SetGetInstanceProcAddr(glfw.GetVulkanGetInstanceProcAddress())
 	orPanic(vk.Init())
 
-	printInstanceLayerProperties()
+	// *** 1 List Layers available ***//
+
+	xPrintInstanceLayerProperties()
+	xPrintInstanceExtensionProperties()
+
+	// *** 2 Instance Creation ***//
+
+	instance := xCreateInstance()
+	fmt.Println(instance)
+
 }
 
-func printInstanceLayerProperties() {
+func xCreateInstance() vk.Instance {
+	var instance vk.Instance
+	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
+	var extensions = []string{"VK_KHR_surface\x00"}
+	var instanceInfo = vk.InstanceCreateInfo{
+		SType: vk.StructureTypeInstanceCreateInfo,
+		PNext: nil,
+		//Flags:                   nil,
+		PApplicationInfo:        nil,
+		EnabledLayerCount:       uint32(len(layers)),
+		PpEnabledLayerNames:     layers,
+		EnabledExtensionCount:   uint32(len(extensions)),
+		PpEnabledExtensionNames: extensions,
+	}
+	orPanic(vk.CreateInstance(&instanceInfo, nil, &instance))
+	return instance
+}
+
+func xPrintInstanceExtensionProperties() {
+	var extensionCount uint32
+	vk.EnumerateInstanceExtensionProperties("", &extensionCount, nil)
+	fmt.Println(extensionCount, " Extensions found\n")
+	extensions := make([]vk.ExtensionProperties, extensionCount)
+	vk.EnumerateInstanceExtensionProperties("", &extensionCount, extensions)
+	for idx, e := range extensions {
+		e.Deref()
+		var name string = vk.ToString(e.ExtensionName[:])
+		fmt.Printf("%v\t: %v\n", idx+1, name)
+	}
+}
+
+func xPrintInstanceLayerProperties() {
 	var layerCount uint32
 	vk.EnumerateInstanceLayerProperties(&layerCount, nil)
 	fmt.Println(layerCount, " Layers found\n")
