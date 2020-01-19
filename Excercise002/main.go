@@ -7,10 +7,23 @@ import (
 )
 
 type appObject struct {
-	window        *glfw.Window
-	instance      vk.Instance
-	surface       vk.Surface
-	logicaldevice vk.Device
+	window   *glfw.Window
+	instance vk.Instance
+	// Surface Specific
+	surface vk.Surface
+	//surfaceFormats []vk.SurfaceFormat
+	surfaceFormat    vk.SurfaceFormat
+	displaySize      vk.Extent2D
+	displayFormat    vk.Format
+	swapchains       []vk.Swapchain
+	swapchainslength []uint32
+	//Device Specific
+	logicalDevice    vk.Device
+	physicalDevices  []vk.PhysicalDevice
+	graphicsQueuePtr *vk.Queue
+	graphicsQueueIdx []uint32
+	//Command Buffer Specific
+	commandPool vk.CommandPool
 }
 
 // type deviceInfo struct {
@@ -71,19 +84,131 @@ func main() {
 	fmt.Println(app.instance)
 
 	//xDevicesInfo(instance)
-	devices, _ := xGetDevices(app.instance)
-	xGetDeviceQueueFamilyProperties(devices[0])
+	app.physicalDevices, _ = xGetDevices(app.instance)
+	xGetDeviceQueueFamilyProperties(app.physicalDevices[0])
 
-	app.logicaldevice, _ = xCreateLogicalDevice(app.instance)
+	app.logicalDevice, _ = xCreateLogicalDevice(app.instance)
 
 	// Search for Graphics queue that is capable for supporting Graphics Operations
 	xCreateSurface(&app)
+	//graphicsQueueIndex := xGetGPUQueueSupportingGraphicsOps()
+	app.graphicsQueueIdx = xGetGPUQueueSupportingGraphicsOps(&app)
+	xGetSurfaceFormats(&app)
+	xCreateSwapChain(&app)
+	xCommandBufferInitialization(&app)
 
 	// Cleanup task
+	vk.DestroyCommandPool(app.logicalDevice, app.commandPool, nil)
+	vk.DestroySwapchain(app.logicalDevice, app.swapchains[0], nil)
 	vk.DestroySurface(app.instance, app.surface, nil)
 	app.window.Destroy()
-	vk.DestroyDevice(app.logicaldevice, nil)
+	vk.DestroyDevice(app.logicalDevice, nil)
 	vk.DestroyInstance(app.instance, nil)
+}
+
+// func xAllocateCmdBufferFromCmdPool(app *appObject) {
+// 	AllocateCommandBuffers(app.physicalDevices[0], pAllocateInfo *CommandBufferAllocateInfo, pCommandBuffers []CommandBuffer)
+// }
+
+func xCommandBufferInitialization(app *appObject) {
+	var commandPool vk.CommandPool
+	cmdPoolCreateInfo := vk.CommandPoolCreateInfo{
+		SType:            vk.StructureTypeCommandPoolCreateInfo,
+		Flags:            vk.CommandPoolCreateFlags(vk.CommandPoolCreateResetCommandBufferBit),
+		QueueFamilyIndex: 0,
+	}
+	err := vk.Error(vk.CreateCommandPool(app.logicalDevice, &cmdPoolCreateInfo, nil, &commandPool))
+	if err != nil {
+		err = fmt.Errorf("vkCreateDevice failed with %s", err)
+		return
+	}
+	app.commandPool = commandPool
+	fmt.Println("Created Command Buffer..........")
+}
+
+func xCreateSwapChain(app *appObject) {
+	var surfaceCapabilities vk.SurfaceCapabilities
+	err := vk.Error(vk.GetPhysicalDeviceSurfaceCapabilities(app.physicalDevices[0], app.surface, &surfaceCapabilities))
+	if err != nil {
+		err = fmt.Errorf("Failed getting surface capabilities with error %s", err)
+		return
+	}
+	surfaceCapabilities.Deref()
+	app.displaySize = surfaceCapabilities.CurrentExtent
+	app.displaySize.Deref()
+	app.displayFormat = app.surfaceFormat.Format
+	swapChainCreateInfo := vk.SwapchainCreateInfo{
+		SType:            vk.StructureTypeSwapchainCreateInfo,
+		Surface:          app.surface,
+		MinImageCount:    surfaceCapabilities.MinImageCount,
+		ImageFormat:      app.surfaceFormat.Format,
+		ImageColorSpace:  app.surfaceFormat.ColorSpace,
+		ImageExtent:      surfaceCapabilities.CurrentExtent,
+		ImageUsage:       vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit),
+		PreTransform:     vk.SurfaceTransformIdentityBit,
+		ImageArrayLayers: 1, //Teels about whether it's virtual 3D view or not - imageArrayLayers is the number of views in a multiview/stereo surface. For non-stereoscopic-3D applications, this value is 1.
+		// https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#VkSwapchainCreateInfoKHR
+		ImageSharingMode:      vk.SharingModeExclusive,
+		QueueFamilyIndexCount: 1,
+		PQueueFamilyIndices:   app.graphicsQueueIdx,
+		PresentMode:           vk.PresentModeFifo,
+		OldSwapchain:          vk.NullSwapchain,
+		Clipped:               vk.False,
+		CompositeAlpha:        vk.CompositeAlphaOpaqueBit,
+	}
+	var swapChains = make([]vk.Swapchain, 1)
+	var swapchainlength = make([]uint32, 1)
+	err = vk.Error(vk.CreateSwapchain(app.logicalDevice, &swapChainCreateInfo, nil, &swapChains[0]))
+	if err != nil {
+		err = fmt.Errorf("vk.CreateSwapchain failed with %s", err)
+		return
+	}
+	app.swapchains = swapChains
+	err = vk.Error(vk.GetSwapchainImages(app.logicalDevice, swapChains[0], &swapchainlength[0], nil))
+	if err != nil {
+		err = fmt.Errorf("vk.GetSwapchainImages failed with %s", err)
+		return
+	}
+	fmt.Println("Create Swapchain.......")
+}
+
+func xGetSurfaceFormats(app *appObject) {
+	var graphicQueue vk.Queue
+	var formatCount uint32
+	vk.GetDeviceQueue(app.logicalDevice, app.graphicsQueueIdx[0], 0, &graphicQueue)
+	app.graphicsQueuePtr = &graphicQueue
+	vk.GetPhysicalDeviceSurfaceFormats(app.physicalDevices[0], app.surface, &formatCount, nil)
+	var surfaceformats = make([]vk.SurfaceFormat, formatCount)
+	vk.GetPhysicalDeviceSurfaceFormats(app.physicalDevices[0], app.surface, &formatCount, surfaceformats)
+	surfaceformats[0].Deref()
+	for i := 0; i < int(formatCount); i++ {
+		if surfaceformats[i].Format == vk.FormatB8g8r8a8Unorm || surfaceformats[i].Format == vk.FormatR8g8b8a8Unorm {
+			app.surfaceFormat = surfaceformats[i]
+			break
+		}
+	}
+	//app.surfaceFormats = surfaceformats
+	fmt.Println("Retrieved SurfaceFormats.......")
+}
+
+func xGetGPUQueueSupportingGraphicsOps(app *appObject) []uint32 {
+	var familyPropertyCount uint32
+	var isPresentationSuported vk.Bool32
+	var index = make(map[uint32]uint32)
+	var uniquekeys []uint32
+	// Get list of Queue family count
+	vk.GetPhysicalDeviceQueueFamilyProperties(app.physicalDevices[0], &familyPropertyCount, nil)
+	for i := 0; i < int(familyPropertyCount); i++ {
+		var idx uint32
+		vk.GetPhysicalDeviceSurfaceSupport(app.physicalDevices[0], idx, app.surface, &isPresentationSuported)
+		if isPresentationSuported == 1 {
+			index[idx] = index[idx] + 1
+		}
+	}
+	for k := range index {
+		uniquekeys = append(uniquekeys, k)
+	}
+	return uniquekeys
 }
 
 func xCreateSurface(app *appObject) {
@@ -102,34 +227,41 @@ func xCreateWindowGLFW() *glfw.Window {
 		fmt.Println("Failed to create window with error ", err)
 		return nil
 	}
+	fmt.Println("Created GLFW Window.......")
 	return window
 }
 
 func xCreateLogicalDevice(instance vk.Instance) (vk.Device, error) {
-	devices, err := xGetDevices(instance)
+	gpudevices, err := xGetDevices(instance)
 	if err != nil {
 		err = fmt.Errorf("Failed to get list of physical devices with error: %s", err)
 		return nil, err
 	}
 	// https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#VkDeviceQueueCreateInfo
 	// See output of 'xGetDeviceQueueFamilyProperties()' to see more details
-	var deviceQueueCreateInfoSlice []vk.DeviceQueueCreateInfo = []vk.DeviceQueueCreateInfo{
-		{
-			SType:            vk.StructureTypeDeviceQueueCreateInfo,
-			QueueFamilyIndex: 0,
-			QueueCount:       1,
-			PQueuePriorities: []float32{1.0},
-			Flags:            0x7FFFFFFF, // This is equivalent of 'VK_DEVICE_QUEUE_CREATE_FLAG_BITS_MAX_ENUM' bit set or in other words, enable everything available
-		},
-		{
-			SType:            vk.StructureTypeDeviceQueueCreateInfo,
-			QueueFamilyIndex: 1,
-			QueueCount:       1,
-			PQueuePriorities: []float32{1.0},
-			Flags:            0x7FFFFFFF,
-		},
-	}
-	var deviceExtensions = []string{"VK_KHR_surface\x00"}
+	// var deviceQueueCreateInfoSlice []vk.DeviceQueueCreateInfo = []vk.DeviceQueueCreateInfo{
+	// 	{
+	// 		SType:            vk.StructureTypeDeviceQueueCreateInfo,
+	// 		QueueFamilyIndex: 0,
+	// 		QueueCount:       1,
+	// 		PQueuePriorities: []float32{1.0},
+	// 		Flags:            0x7FFFFFFF, // This is equivalent of 'VK_DEVICE_QUEUE_CREATE_FLAG_BITS_MAX_ENUM' bit set or in other words, enable everything available
+	// 	},
+	// 	{
+	// 		SType:            vk.StructureTypeDeviceQueueCreateInfo,
+	// 		QueueFamilyIndex: 1,
+	// 		QueueCount:       1,
+	// 		PQueuePriorities: []float32{1.0},
+	// 		Flags:            0x7FFFFFFF,
+	// 	},
+	// }
+	deviceQueueCreateInfoSlice := []vk.DeviceQueueCreateInfo{{
+		SType:            vk.StructureTypeDeviceQueueCreateInfo,
+		QueueCount:       1,
+		PQueuePriorities: []float32{1.0},
+	}}
+	//var deviceExtensions = []string{"VK_KHR_surface\x00"}
+	var deviceExtensions = []string{"VK_KHR_swapchain\x00"}
 	var deviceLayers = []string{"VK_LAYER_KHRONOS_validation\x00"}
 	var deviceCreateInfo *vk.DeviceCreateInfo = &vk.DeviceCreateInfo{
 		SType:                   vk.StructureTypeDeviceCreateInfo,
@@ -141,11 +273,12 @@ func xCreateLogicalDevice(instance vk.Instance) (vk.Device, error) {
 		PpEnabledExtensionNames: deviceExtensions,
 	}
 	var logicalDevice vk.Device
-	err = vk.Error(vk.CreateDevice(devices[0], deviceCreateInfo, nil, &logicalDevice))
+	err = vk.Error(vk.CreateDevice(gpudevices[0], deviceCreateInfo, nil, &logicalDevice))
 	if err != nil {
 		err = fmt.Errorf("vkCreateDevice failed with %s", err)
 		return nil, err
 	}
+	fmt.Println("Created Logical Device.......")
 	return logicalDevice, nil
 }
 
@@ -183,7 +316,7 @@ func xGetDeviceQueueFamilyProperties(device vk.PhysicalDevice) {
 			fmt.Println("\tVK_QUEUE_FLAG_BITS_MAX_ENUM ")
 		}
 	}
-
+	fmt.Println("Retrieved GPU Graphics Queue information.......")
 }
 
 func xGetDevices(instance vk.Instance) ([]vk.PhysicalDevice, error) {
