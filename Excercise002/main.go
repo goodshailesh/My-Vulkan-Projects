@@ -51,15 +51,63 @@ func main() {
 	//xPrintInstanceLayerProperties()
 	//xPrintInstanceExtensionProperties()
 
-	// *** 2 Instance Creation ***//
+	// *** 2 Instance and Application Creation ***//
 
 	instance := xCreateInstance()
 	fmt.Println(instance)
 
 	//xDevicesInfo(instance)
-	devices, _ := xGetDevicesInfo(instance)
+	devices, _ := xGetDevices(instance)
 	xGetDeviceQueueFamilyProperties(devices[0])
 
+	xCreateLogicalDevice(instance)
+
+	// Cleanup task
+	vk.DestroyInstance(instance, nil)
+}
+
+func xCreateLogicalDevice(instance vk.Instance) (vk.Device, error) {
+	devices, err := xGetDevices(instance)
+	if err != nil {
+		err = fmt.Errorf("Failed to get list of physical devices with error: %s", err)
+		return nil, err
+	}
+	// https://www.khronos.org/registry/vulkan/specs/1.2-extensions/html/vkspec.html#VkDeviceQueueCreateInfo
+	// See output of 'xGetDeviceQueueFamilyProperties()' to see more details
+	var deviceQueueCreateInfoSlice []vk.DeviceQueueCreateInfo = []vk.DeviceQueueCreateInfo{
+		{
+			SType:            vk.StructureTypeDeviceQueueCreateInfo,
+			QueueFamilyIndex: 0,
+			QueueCount:       1,
+			PQueuePriorities: []float32{1.0},
+			Flags:            0x7FFFFFFF, // This is equivalent of 'VK_DEVICE_QUEUE_CREATE_FLAG_BITS_MAX_ENUM' bit set or in other words, enable everything available
+		},
+		{
+			SType:            vk.StructureTypeDeviceQueueCreateInfo,
+			QueueFamilyIndex: 1,
+			QueueCount:       1,
+			PQueuePriorities: []float32{1.0},
+			Flags:            0x7FFFFFFF,
+		},
+	}
+	var deviceExtensions = []string{"VK_KHR_surface\x00"}
+	var deviceLayers = []string{"VK_LAYER_KHRONOS_validation\x00"}
+	var deviceCreateInfo *vk.DeviceCreateInfo = &vk.DeviceCreateInfo{
+		SType:                   vk.StructureTypeDeviceCreateInfo,
+		QueueCreateInfoCount:    uint32(len(deviceQueueCreateInfoSlice)),
+		PQueueCreateInfos:       deviceQueueCreateInfoSlice,
+		EnabledLayerCount:       uint32(len(deviceLayers)),
+		PpEnabledLayerNames:     deviceLayers,
+		EnabledExtensionCount:   uint32(len(deviceExtensions)),
+		PpEnabledExtensionNames: deviceExtensions,
+	}
+	var logicalDevice vk.Device
+	err = vk.Error(vk.CreateDevice(devices[0], deviceCreateInfo, nil, &logicalDevice))
+	if err != nil {
+		err = fmt.Errorf("vkCreateDevice failed with %s", err)
+		return nil, err
+	}
+	return logicalDevice, nil
 }
 
 func xGetDeviceQueueFamilyProperties(device vk.PhysicalDevice) {
@@ -99,7 +147,7 @@ func xGetDeviceQueueFamilyProperties(device vk.PhysicalDevice) {
 
 }
 
-func xGetDevicesInfo(instance vk.Instance) ([]vk.PhysicalDevice, error) {
+func xGetDevices(instance vk.Instance) ([]vk.PhysicalDevice, error) {
 
 	var deviceCount uint32
 	err := vk.Error(vk.EnumeratePhysicalDevices(instance, &deviceCount, nil))
@@ -118,6 +166,15 @@ func xGetDevicesInfo(instance vk.Instance) ([]vk.PhysicalDevice, error) {
 }
 
 func xCreateInstance() vk.Instance {
+	var appInfo *vk.ApplicationInfo = &vk.ApplicationInfo{
+		SType:              vk.StructureTypeApplicationInfo,
+		PNext:              nil,
+		PApplicationName:   "myVulkan Application\x00",
+		ApiVersion:         vk.MakeVersion(1, 0, 0), // Throws 'vulkan error: incompatible driver' error with incorrect version number
+		ApplicationVersion: vk.MakeVersion(1, 0, 0),
+		PEngineName:        "My Game Engine\x00",
+		EngineVersion:      vk.MakeVersion(0, 1, 0),
+	}
 	var instance vk.Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
 	var extensions = []string{"VK_KHR_surface\x00"}
@@ -125,7 +182,7 @@ func xCreateInstance() vk.Instance {
 		SType: vk.StructureTypeInstanceCreateInfo,
 		PNext: nil,
 		//Flags:                   nil,
-		PApplicationInfo:        nil,
+		PApplicationInfo:        appInfo,
 		EnabledLayerCount:       uint32(len(layers)),
 		PpEnabledLayerNames:     layers,
 		EnabledExtensionCount:   uint32(len(extensions)),
