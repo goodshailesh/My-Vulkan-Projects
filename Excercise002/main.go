@@ -6,12 +6,19 @@ import (
 	vk "github.com/vulkan-go/vulkan"
 )
 
-type deviceInfo struct {
-	gpus     []vk.PhysicalDevice
-	instance vk.Instance
-	surface  vk.Surface
-	device   vk.Device
+type appObject struct {
+	window        *glfw.Window
+	instance      vk.Instance
+	surface       vk.Surface
+	logicaldevice vk.Device
 }
+
+// type deviceInfo struct {
+// 	gpus     []vk.PhysicalDevice
+// 	instance vk.Instance
+// 	surface  vk.Surface
+// 	device   vk.Device
+// }
 
 // Vulkan Device Queue family capabilities Enum
 // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkQueueFlagBits.html
@@ -34,6 +41,8 @@ func main() {
 	// Initialization Stage
 	//-------------------------
 
+	var app appObject
+
 	orPanic(glfw.Init())
 	// GetVulkanGetInstanceProcAddress returns the function pointer used to find Vulkan core or
 	// extension functions. The return value of this function can be passed to the Vulkan library.
@@ -51,19 +60,49 @@ func main() {
 	//xPrintInstanceLayerProperties()
 	//xPrintInstanceExtensionProperties()
 
-	// *** 2 Instance and Application Creation ***//
+	// *** 2 GLFW Window Creation ***//
+	// Vulkan WSI extensions avaibale for different platforms
+	// https://www.glfw.org/docs/latest/compat.html
+	app.window = xCreateWindowGLFW()
 
-	instance := xCreateInstance()
-	fmt.Println(instance)
+	// *** 3 Instance and Application Creation ***//
+
+	app.instance = xCreateInstance()
+	fmt.Println(app.instance)
 
 	//xDevicesInfo(instance)
-	devices, _ := xGetDevices(instance)
+	devices, _ := xGetDevices(app.instance)
 	xGetDeviceQueueFamilyProperties(devices[0])
 
-	xCreateLogicalDevice(instance)
+	app.logicaldevice, _ = xCreateLogicalDevice(app.instance)
+
+	// Search for Graphics queue that is capable for supporting Graphics Operations
+	xCreateSurface(&app)
 
 	// Cleanup task
-	vk.DestroyInstance(instance, nil)
+	vk.DestroySurface(app.instance, app.surface, nil)
+	app.window.Destroy()
+	vk.DestroyDevice(app.logicaldevice, nil)
+	vk.DestroyInstance(app.instance, nil)
+}
+
+func xCreateSurface(app *appObject) {
+	surfacePtr, err := app.window.CreateWindowSurface(app.instance, nil)
+	if err != nil {
+		fmt.Println("Error creating windows surface ", err)
+		app.surface = vk.NullSurface
+	}
+	app.surface = vk.SurfaceFromPointer(surfacePtr)
+}
+
+func xCreateWindowGLFW() *glfw.Window {
+	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)
+	window, err := glfw.CreateWindow(800, 600, "My Game Engine", nil, nil)
+	if err != nil {
+		fmt.Println("Failed to create window with error ", err)
+		return nil
+	}
+	return window
 }
 
 func xCreateLogicalDevice(instance vk.Instance) (vk.Device, error) {
@@ -177,7 +216,7 @@ func xCreateInstance() vk.Instance {
 	}
 	var instance vk.Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
-	var extensions = []string{"VK_KHR_surface\x00"}
+	var extensions = []string{"VK_KHR_surface\x00", "VK_KHR_win32_surface\x00"}
 	var instanceInfo = vk.InstanceCreateInfo{
 		SType: vk.StructureTypeInstanceCreateInfo,
 		PNext: nil,
