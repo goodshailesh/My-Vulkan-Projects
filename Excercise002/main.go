@@ -23,7 +23,8 @@ type appObject struct {
 	graphicsQueuePtr *vk.Queue
 	graphicsQueueIdx []uint32
 	//Command Buffer Specific
-	commandPool vk.CommandPool
+	commandPool    vk.CommandPool
+	commandBuffers []vk.CommandBuffer
 }
 
 // type deviceInfo struct {
@@ -98,6 +99,7 @@ func main() {
 	xCommandBufferInitialization(&app)
 
 	// Cleanup task
+
 	vk.DestroyCommandPool(app.logicalDevice, app.commandPool, nil)
 	vk.DestroySwapchain(app.logicalDevice, app.swapchains[0], nil)
 	vk.DestroySurface(app.instance, app.surface, nil)
@@ -123,6 +125,20 @@ func xCommandBufferInitialization(app *appObject) {
 		return
 	}
 	app.commandPool = commandPool
+	fmt.Println("Created Command Pool..........")
+	var commandBuffers = make([]vk.CommandBuffer, app.swapchainslength[0])
+	var cmdBufferAllocateInfo = vk.CommandBufferAllocateInfo{
+		SType:              vk.StructureTypeCommandBufferAllocateInfo,
+		CommandPool:        commandPool,
+		Level:              vk.CommandBufferLevelPrimary,
+		CommandBufferCount: app.swapchainslength[0],
+	}
+	err = vk.Error(vk.AllocateCommandBuffers(app.logicalDevice, &cmdBufferAllocateInfo, commandBuffers))
+	if err != nil {
+		err = fmt.Errorf("vk.AllocateCommandBuffers failed with %s", err)
+		return
+	}
+	app.commandBuffers = commandBuffers
 	fmt.Println("Created Command Buffer..........")
 }
 
@@ -164,6 +180,7 @@ func xCreateSwapChain(app *appObject) {
 		return
 	}
 	app.swapchains = swapChains
+	app.swapchainslength = swapchainlength
 	err = vk.Error(vk.GetSwapchainImages(app.logicalDevice, swapChains[0], &swapchainlength[0], nil))
 	if err != nil {
 		err = fmt.Errorf("vk.GetSwapchainImages failed with %s", err)
