@@ -6,6 +6,9 @@ import (
 	vk "github.com/vulkan-go/vulkan"
 )
 
+var width uint32 = 800
+var height uint32 = 600
+
 type appObject struct {
 	window   *glfw.Window
 	instance vk.Instance
@@ -19,7 +22,8 @@ type appObject struct {
 	swapchainslength []uint32
 	imageViews       []vk.ImageView
 	//FrameBuffer Specific
-	renderPass vk.RenderPass
+	renderPass   vk.RenderPass
+	frameBuffers []vk.Framebuffer
 	//Device Specific
 	logicalDevice    vk.Device
 	physicalDevices  []vk.PhysicalDevice
@@ -102,8 +106,12 @@ func main() {
 	xCommandBufferInitialization(&app)
 	xCreateImageView(&app)
 	xCreateRenderPass(&app)
+	xCreateFrameBuffer(&app)
 
 	// Cleanup task
+	for idx := range app.frameBuffers {
+		vk.DestroyFramebuffer(app.logicalDevice, app.frameBuffers[idx], nil)
+	}
 	vk.DestroyRenderPass(app.logicalDevice, app.renderPass, nil)
 	for _, imageView := range app.imageViews {
 		vk.DestroyImageView(app.logicalDevice, imageView, nil)
@@ -114,6 +122,37 @@ func main() {
 	app.window.Destroy()
 	vk.DestroyDevice(app.logicalDevice, nil)
 	vk.DestroyInstance(app.instance, nil)
+}
+
+func xCreateFrameBuffer(app *appObject) {
+	var frameBuffers = make([]vk.Framebuffer, app.swapchainslength[0])
+	var depthView vk.ImageView
+	// We need 4 images in total for Double Buffering: 2 ImageViews for swaping and
+	// 2 for rendering to(these 2 imageview will be used to render store rendered images)
+	for idx, _ := range frameBuffers {
+		attachments := []vk.ImageView{
+			app.imageViews[idx], depthView,
+		}
+		fbCreateInfo := vk.FramebufferCreateInfo{
+			SType:           vk.StructureTypeFramebufferCreateInfo,
+			RenderPass:      app.renderPass,
+			Layers:          1,
+			AttachmentCount: 1, // 2 if has depthView
+			PAttachments:    attachments,
+			Width:           width,
+			Height:          height,
+		}
+		if depthView != vk.NullImageView {
+			fbCreateInfo.AttachmentCount = 2
+		}
+		err := vk.Error(vk.CreateFramebuffer(app.logicalDevice, &fbCreateInfo, nil, &frameBuffers[idx]))
+		if err != nil {
+			err = fmt.Errorf("Failed to create Framebuffer with %s", err)
+			return // bail out
+		}
+	}
+	app.frameBuffers = frameBuffers
+	fmt.Println("Created FrameBuffer(s)......")
 }
 
 func xCreateRenderPass(app *appObject) {
@@ -326,7 +365,7 @@ func xCreateSurface(app *appObject) {
 
 func xCreateWindowGLFW() *glfw.Window {
 	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)
-	window, err := glfw.CreateWindow(800, 600, "My Game Engine", nil, nil)
+	window, err := glfw.CreateWindow(int(width), int(height), "My Game Engine", nil, nil)
 	if err != nil {
 		fmt.Println("Failed to create window with error ", err)
 		return nil
