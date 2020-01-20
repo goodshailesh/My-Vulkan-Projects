@@ -18,6 +18,8 @@ type appObject struct {
 	swapchains       []vk.Swapchain
 	swapchainslength []uint32
 	imageViews       []vk.ImageView
+	//FrameBuffer Specific
+	renderPass vk.RenderPass
 	//Device Specific
 	logicalDevice    vk.Device
 	physicalDevices  []vk.PhysicalDevice
@@ -99,8 +101,10 @@ func main() {
 	xCreateSwapChain(&app)
 	xCommandBufferInitialization(&app)
 	xCreateImageView(&app)
+	xCreateRenderPass(&app)
 
 	// Cleanup task
+	vk.DestroyRenderPass(app.logicalDevice, app.renderPass, nil)
 	for _, imageView := range app.imageViews {
 		vk.DestroyImageView(app.logicalDevice, imageView, nil)
 	}
@@ -112,9 +116,43 @@ func main() {
 	vk.DestroyInstance(app.instance, nil)
 }
 
-// func xAllocateCmdBufferFromCmdPool(app *appObject) {
-// 	AllocateCommandBuffers(app.physicalDevices[0], pAllocateInfo *CommandBufferAllocateInfo, pCommandBuffers []CommandBuffer)
-// }
+func xCreateRenderPass(app *appObject) {
+	var renderPass vk.RenderPass
+	attachmentDescriptions := []vk.AttachmentDescription{{
+		Format:         app.surfaceFormat.Format,
+		Samples:        vk.SampleCount1Bit,
+		LoadOp:         vk.AttachmentLoadOpClear,
+		StoreOp:        vk.AttachmentStoreOpStore,
+		StencilLoadOp:  vk.AttachmentLoadOpDontCare,
+		StencilStoreOp: vk.AttachmentStoreOpDontCare,
+		InitialLayout:  vk.ImageLayoutColorAttachmentOptimal,
+		FinalLayout:    vk.ImageLayoutColorAttachmentOptimal,
+	}}
+	colorAttachments := []vk.AttachmentReference{{
+		Attachment: 0,
+		Layout:     vk.ImageLayoutColorAttachmentOptimal,
+	}}
+	subPassDescription := []vk.SubpassDescription{{
+		PipelineBindPoint:       vk.PipelineBindPointGraphics,
+		ColorAttachmentCount:    1,
+		PColorAttachments:       colorAttachments,
+		PDepthStencilAttachment: nil,
+	}}
+	renderPassCreateInfo := vk.RenderPassCreateInfo{
+		SType:           vk.StructureTypeRenderPassCreateInfo,
+		AttachmentCount: 1,
+		PAttachments:    attachmentDescriptions,
+		SubpassCount:    1,
+		PSubpasses:      subPassDescription,
+	}
+	err := vk.Error(vk.CreateRenderPass(app.logicalDevice, &renderPassCreateInfo, nil, &renderPass))
+	if err != nil {
+		err = fmt.Errorf("Create RenderPass failed with %s", err)
+		return
+	}
+	app.renderPass = renderPass
+	fmt.Println("Created RenderPass......")
+}
 
 //  Create the image view of the retrieved swapchain images
 func xCreateImageView(app *appObject) {
