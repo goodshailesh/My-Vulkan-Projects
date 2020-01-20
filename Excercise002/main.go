@@ -17,6 +17,7 @@ type appObject struct {
 	displayFormat    vk.Format
 	swapchains       []vk.Swapchain
 	swapchainslength []uint32
+	imageViews       []vk.ImageView
 	//Device Specific
 	logicalDevice    vk.Device
 	physicalDevices  []vk.PhysicalDevice
@@ -97,9 +98,12 @@ func main() {
 	xGetSurfaceFormats(&app)
 	xCreateSwapChain(&app)
 	xCommandBufferInitialization(&app)
+	xCreateImageView(&app)
 
 	// Cleanup task
-
+	for _, imageView := range app.imageViews {
+		vk.DestroyImageView(app.logicalDevice, imageView, nil)
+	}
 	vk.DestroyCommandPool(app.logicalDevice, app.commandPool, nil)
 	vk.DestroySwapchain(app.logicalDevice, app.swapchains[0], nil)
 	vk.DestroySurface(app.instance, app.surface, nil)
@@ -111,6 +115,51 @@ func main() {
 // func xAllocateCmdBufferFromCmdPool(app *appObject) {
 // 	AllocateCommandBuffers(app.physicalDevices[0], pAllocateInfo *CommandBufferAllocateInfo, pCommandBuffers []CommandBuffer)
 // }
+
+//  Create the image view of the retrieved swapchain images
+func xCreateImageView(app *appObject) {
+	var swapchainImageCount uint32 // If this is populated with '2' by below function, then it means swap chain supports double buffering
+	err := vk.Error(vk.GetSwapchainImages(app.logicalDevice, app.swapchains[0], &swapchainImageCount, nil))
+	if err != nil {
+		err = fmt.Errorf("vkCreateDevice failed with %s", err)
+		return
+	}
+	var swapchainImages = make([]vk.Image, swapchainImageCount)
+	err = vk.Error(vk.GetSwapchainImages(app.logicalDevice, app.swapchains[0], &swapchainImageCount, swapchainImages))
+	if err != nil {
+		err = fmt.Errorf("vkCreateDevice failed with %s", err)
+		return
+	}
+	//app.swapchainImages = swapchainImages
+	//fmt.Println(swapchainImageCount)
+	for _, image := range swapchainImages {
+		var imageView vk.ImageView
+		imageViewCreateInfo := vk.ImageViewCreateInfo{
+			SType:    vk.StructureTypeImageViewCreateInfo,
+			Image:    image,
+			ViewType: vk.ImageViewType2d,
+			Format:   app.surfaceFormat.Format,
+			Components: vk.ComponentMapping{
+				R: vk.ComponentSwizzleR,
+				G: vk.ComponentSwizzleG,
+				B: vk.ComponentSwizzleB,
+				A: vk.ComponentSwizzleA,
+			},
+			SubresourceRange: vk.ImageSubresourceRange{
+				AspectMask: vk.ImageAspectFlags(vk.ImageAspectColorBit),
+				LevelCount: 1,
+				LayerCount: 1,
+			},
+		}
+		err := vk.Error(vk.CreateImageView(app.logicalDevice, &imageViewCreateInfo, nil, &imageView))
+		if err != nil {
+			err = fmt.Errorf("ImageView creation failed with %s", err)
+			return
+		}
+		app.imageViews = append(app.imageViews, imageView)
+	}
+	fmt.Println("Created Image View......")
+}
 
 func xCommandBufferInitialization(app *appObject) {
 	var commandPool vk.CommandPool
