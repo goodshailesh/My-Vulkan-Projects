@@ -202,7 +202,7 @@ func xDrawFrameToDevice(app *appObject) {
 		vk.NewClearValue([]float32{1.0, 0.0, 0.0, 1.0}),
 	}
 	//err := vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, app.semaphores[0], nil, &nextImageIdx))
-	err := vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, nil, nil, &nextImageIdx))
+	err := vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, app.semaphores[0], nil, &nextImageIdx))
 	if err != nil {
 		fmt.Println("AcquireNextImage failed with ", err)
 		return
