@@ -28,7 +28,7 @@ func main() {
 	var physicalDeviceFeatures vk.PhysicalDeviceFeatures
 	var memoryProperties vk.PhysicalDeviceMemoryProperties
 	var pQueueFamilyProperties []vk.QueueFamilyProperties
-	//var logicalDevice vk.Device
+	var pLogicalDevice *vk.Device
 
 	//Create Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
@@ -57,6 +57,7 @@ func main() {
 	physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevices[0])
 	memoryProperties = getPhysicalDeviceMemoryProperties(physicalDevices[0])
 	pQueueFamilyProperties = getPhysicalDeviceQueueFamilyProperties(physicalDevices[0])
+	pLogicalDevice = createDevice(physicalDevices[0], physicalDeviceFeatures)
 
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[0], &memoryProperties)
@@ -69,24 +70,54 @@ func main() {
 	fmt.Println(memoryProperties)
 	fmt.Println(pQueueFamilyProperties)
 	uitlPrintDeviceQueueFamilyProperties(pQueueFamilyProperties)
+	fmt.Printf("%T, %v", pLogicalDevice, pLogicalDevice)
 }
 
-// func createDevice(physicalDevice vk.PhysicalDevice) *vk.Device {
-// 	var logicalDevicePtr *vk.Device
-
-// 	result := vk.CreateDevice(physicalDevice, pCreateInfo*DeviceCreateInfo, nil, logicalDevicePtr)
-// 	if result != vk.Success {
-// 		fmt.Println(fmt.Errorf("Error getting physical device count: %v", result))
-// 		return nil
-// 	}
-// }
+func createDevice(physicalDevice vk.PhysicalDevice, physicalDeviceFeatures vk.PhysicalDeviceFeatures) *vk.Device {
+	fmt.Println("Creating Logical device..............")
+	var logicalDevice vk.Device
+	// var physicalDeviceFeatures []vk.PhysicalDeviceFeatures = []vk.PhysicalDeviceFeatures{
+	// 	physicalDeviceFeatures,
+	// }
+	var pEnabledDeviceFeatures []vk.PhysicalDeviceFeatures = make([]vk.PhysicalDeviceFeatures, 1)
+	deviceQueueCreateInfoSlice := []vk.DeviceQueueCreateInfo{{
+		SType: vk.StructureTypeDeviceQueueCreateInfo,
+		//QueueCount:       16,
+		QueueCount: 1,
+		//QueueFamilyIndex: 0,
+		PQueuePriorities: []float32{1.0},
+	}}
+	//var deviceExtensions = []string{"VK_KHR_surface\x00"}
+	//var deviceExtensions = []string{"VK_KHR_swapchain\x00"}
+	//var deviceLayers = []string{"VK_LAYER_KHRONOS_validation\x00"}
+	var deviceCreateInfo *vk.DeviceCreateInfo = &vk.DeviceCreateInfo{
+		SType:                vk.StructureTypeDeviceCreateInfo,
+		QueueCreateInfoCount: uint32(len(deviceQueueCreateInfoSlice)),
+		PQueueCreateInfos:    deviceQueueCreateInfoSlice,
+		// EnabledLayerCount:       uint32(len(deviceLayers)),
+		// PpEnabledLayerNames:     deviceLayers,
+		// EnabledExtensionCount:   uint32(len(deviceExtensions)),
+		// PpEnabledExtensionNames: deviceExtensions,
+		// Following will enable given features from slice
+		//PEnabledFeatures:        physicalDeviceFeatures,
+		// Following will return structure of enable features into the slice
+		PEnabledFeatures: pEnabledDeviceFeatures,
+	}
+	result := vk.CreateDevice(physicalDevice, deviceCreateInfo, nil, &logicalDevice)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Error creating Logical device: %v", result))
+		return nil
+	}
+	fmt.Println("Created Logical device..............")
+	return &logicalDevice
+}
 
 func uitlPrintDeviceQueueFamilyProperties(qfs []vk.QueueFamilyProperties) {
 	fmt.Println("Print device queue properties..............")
 	fmt.Printf("\tFound %v families\n", len(qfs))
 	for idx, qf := range qfs {
 		qf.Deref()
-		fmt.Printf("\tFamily %v\n", idx)
+		fmt.Printf("\tFamily %v, Number of queues in the family (vk.QueueCount): %v\n", idx, qf.QueueCount)
 		flagBits := vk.QueueFlagBits(qf.QueueFlags)
 		if flagBits&vk.QueueGraphicsBit != 0x00000000 {
 			fmt.Printf("\t\tVK_QUEUE_GRAPHICS_BIT \t\t[vk.QueueGraphicsBit] \t\t[0x00000001\\1]\n")
@@ -144,7 +175,7 @@ func getPhysicalDevices(instance vk.Instance) []vk.PhysicalDevice {
 		fmt.Println(fmt.Errorf("Error getting physical device count: %v", result))
 		return nil
 	}
-	fmt.Printf("\tFound total %v Physical Device(s).....", deviceCount)
+	fmt.Printf("\tFound total %v Physical Device(s).....\n", deviceCount)
 	var physicalDevices = make([]vk.PhysicalDevice, deviceCount)
 	result = vk.EnumeratePhysicalDevices(instance, &deviceCount, physicalDevices)
 	if result != vk.Success {
