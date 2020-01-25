@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/vulkan-go/glfw/v3.3/glfw"
 	vk "github.com/vulkan-go/vulkan"
 )
@@ -11,10 +10,8 @@ var width uint32 = 800
 var height uint32 = 600
 
 type appObject struct {
-	window     *glfw.Window
-	instance   vk.Instance
-	semaphores []vk.Semaphore
-	fences     []vk.Fence
+	window   *glfw.Window
+	instance vk.Instance
 	// Surface Specific
 	surface vk.Surface
 	//surfaceFormats []vk.SurfaceFormat
@@ -110,16 +107,8 @@ func main() {
 	xCreateImageView(&app)
 	xCreateRenderPass(&app)
 	xCreateFrameBuffer(&app)
-	xCreateSemaphore(&app)
-	xDrawFrameToDevice(&app)
 
 	// Cleanup task
-	for idx := range app.fences {
-		vk.DestroyFence(app.logicalDevice, app.fences[idx], nil)
-	}
-	for idx := range app.semaphores {
-		vk.DestroySemaphore(app.logicalDevice, app.semaphores[idx], nil)
-	}
 	for idx := range app.frameBuffers {
 		vk.DestroyFramebuffer(app.logicalDevice, app.frameBuffers[idx], nil)
 	}
@@ -135,147 +124,12 @@ func main() {
 	vk.DestroyInstance(app.instance, nil)
 }
 
-func xDrawFrameToScreen(app *appObject, nextImageIdx uint32) {
-	// var nextIdx uint32
-	// vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, app.semaphores[0], vk.NullFence, &nextIdx))
-	// err := vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, app.semaphores[0], nil, &nextImageIdx))
-	// if err != nil {
-	// 	fmt.Println("AcquireNextImage failed with ", err)
-	// 	return
-	// }
-	vk.ResetFences(app.logicalDevice, uint32(len(app.fences)), app.fences)
-	submitInfo := []vk.SubmitInfo{{
-		SType: vk.StructureTypeSubmitInfo,
-		// WaitSemaphoreCount: 1,
-		// PWaitSemaphores:    app.semaphores,
-		// PWaitDstStageMask:  nil,
-		CommandBufferCount: 1,
-		PCommandBuffers:    app.commandBuffers[nextImageIdx:],
-	}}
-	err := vk.Error(vk.QueueSubmit(*app.graphicsQueuePtr, 1, submitInfo, app.fences[0]))
-	if err != nil {
-		fmt.Println("AcquireNextImage failed with ", err)
-		return
-	}
-	const timeoutNano = 10 * 1000 * 1000 * 1000 // 10 sec
-	err = vk.Error(vk.WaitForFences(app.logicalDevice, 1, app.fences, vk.True, timeoutNano))
-	if err != nil {
-		fmt.Println("AcquireNextImage failed with ", err)
-		return
-	}
-	imageIndices := []uint32{nextImageIdx}
-	presentInfo := vk.PresentInfo{
-		SType: vk.StructureTypePresentInfo,
-		// WaitSemaphoreCount: uint32(len(app.semaphores)),
-		// PWaitSemaphores:    app.semaphores,
-		SwapchainCount: 1,
-		PSwapchains:    app.swapchains,
-		PImageIndices:  imageIndices,
-	}
-	err = vk.Error(vk.QueuePresent(*app.graphicsQueuePtr, &presentInfo))
-
-	// 	fpsTicker := time.NewTicker(time.Second / 30)
-	// 	for {
-	// 		select {
-	// 		case <-exitC:
-	// 			vulkandraw.DestroyInOrder(&v, &s, &r, &b, &gfx)
-	// 			window.Destroy()
-	// 			glfw.Terminate()
-	// 			fpsTicker.Stop()
-	// 			doneC <- struct{}{}
-	// 			return
-	// 		case <-fpsTicker.C:
-	// 			if window.ShouldClose() {
-	// 				exitC <- struct{}{}
-	// 				continue
-	// 			}
-	// 			glfw.PollEvents()
-	// 			//vulkandraw.VulkanDrawFrame(v, s, r)
-	// xDrawFrameToDevice()
-	// 		}
-	// 	}
-}
-
-func xDrawFrameToDevice(app *appObject) {
-	var nextImageIdx uint32
-	clearValues := []vk.ClearValue{
-		vk.NewClearValue([]float32{1.0, 0.0, 0.0, 1.0}),
-	}
-	//err := vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, app.semaphores[0], nil, &nextImageIdx))
-	err := vk.Error(vk.AcquireNextImage(app.logicalDevice, app.swapchains[0], vk.MaxUint64, app.semaphores[0], nil, &nextImageIdx))
-	if err != nil {
-		fmt.Println("AcquireNextImage failed with ", err)
-		return
-	}
-	cmdBufferBeginInfo := vk.CommandBufferBeginInfo{
-		SType: vk.StructureTypeCommandBufferBeginInfo,
-		//Flags: vk.CommandBufferUsageOneTimeSubmitBit,
-		// VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-	}
-	for i := range app.commandBuffers {
-
-		renderPassBeginInfo := vk.RenderPassBeginInfo{
-			SType:       vk.StructureTypeRenderPassBeginInfo,
-			RenderPass:  app.renderPass,
-			Framebuffer: app.frameBuffers[i],
-			RenderArea: vk.Rect2D{
-				Offset: vk.Offset2D{
-					X: 0, Y: 0,
-				},
-				Extent: app.displaySize,
-			},
-			ClearValueCount: 1,
-			PClearValues:    clearValues,
-		}
-		error := vk.Error(vk.BeginCommandBuffer(app.commandBuffers[i], &cmdBufferBeginInfo))
-		if error != nil {
-			fmt.Println("BeginCommandBuffer failed with ", error)
-			return
-		}
-		vk.CmdBeginRenderPass(app.commandBuffers[i], &renderPassBeginInfo, vk.SubpassContentsInline)
-
-		///////////////////////////////
-		// Actual Geometry Drawing Code goes here
-		///////////////////////////////
-
-		vk.CmdEndRenderPass(app.commandBuffers[i])
-		vk.EndCommandBuffer(app.commandBuffers[i])
-	}
-	fenceCreateInfo := vk.FenceCreateInfo{
-		SType: vk.StructureTypeFenceCreateInfo,
-	}
-	fences := make([]vk.Fence, 1)
-	err = vk.Error(vk.CreateFence(app.logicalDevice, &fenceCreateInfo, nil, &fences[0]))
-	if err != nil {
-		fmt.Println("BeginCommandBuffer failed with ", err)
-		return
-	}
-	app.fences = fences
-	fmt.Println("Image Draw To Device Successfull......")
-	xDrawFrameToScreen(app, nextImageIdx)
-}
-
-func xCreateSemaphore(app *appObject) {
-	var semaphores []vk.Semaphore = make([]vk.Semaphore, 1)
-	semaphoreCreateInfo := vk.SemaphoreCreateInfo{
-		SType: vk.StructureTypeSemaphoreCreateInfo,
-	}
-	err := vk.Error(vk.CreateSemaphore(app.logicalDevice, &semaphoreCreateInfo, nil, &semaphores[0]))
-	if err != nil {
-		fmt.Println("CreateSemaphore failed with ", err)
-		return
-	}
-	app.semaphores = semaphores
-	fmt.Println("Created Semaphors(s)......")
-
-}
-
 func xCreateFrameBuffer(app *appObject) {
 	var frameBuffers = make([]vk.Framebuffer, app.swapchainslength[0])
 	var depthView vk.ImageView
 	// We need 4 images in total for Double Buffering: 2 ImageViews for swaping and
 	// 2 for rendering to(these 2 imageview will be used to render store rendered images)
-	for idx := range frameBuffers {
+	for idx, _ := range frameBuffers {
 		attachments := []vk.ImageView{
 			app.imageViews[idx], depthView,
 		}
@@ -381,7 +235,6 @@ func xCreateImageView(app *appObject) {
 		}
 		app.imageViews = append(app.imageViews, imageView)
 	}
-	swapchainImages = nil
 	fmt.Println("Created Image View......")
 }
 
@@ -447,7 +300,6 @@ func xCreateSwapChain(app *appObject) {
 	}
 	var swapChains = make([]vk.Swapchain, 1)
 	var swapchainlength = make([]uint32, 1)
-	swapchainlength[0] = uint32(len(swapChains))
 	err = vk.Error(vk.CreateSwapchain(app.logicalDevice, &swapChainCreateInfo, nil, &swapChains[0]))
 	if err != nil {
 		err = fmt.Errorf("vk.CreateSwapchain failed with %s", err)
@@ -640,11 +492,7 @@ func xCreateInstance() vk.Instance {
 	}
 	var instance vk.Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
-	// For Windows Only
 	var extensions = []string{"VK_KHR_surface\x00", "VK_KHR_win32_surface\x00"}
-	// For Linux
-	//https://software.intel.com/en-us/articles/api-without-secrets-introduction-to-vulkan-part-2
-	//var extensions = []string{"VK_KHR_surface\x00", "VK_KHR_xcb_surface\x00"}
 	var instanceInfo = vk.InstanceCreateInfo{
 		SType: vk.StructureTypeInstanceCreateInfo,
 		PNext: nil,
