@@ -62,6 +62,7 @@ func main() {
 	getDeviceLayerProperties(physicalDevices[0])
 	getInstanceExtensionProperties()
 	getDeviceExtensionProperties(physicalDevices[0])
+	deviceWaitTillComplete(pLogicalDevice)
 
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[0], &memoryProperties)
@@ -77,6 +78,16 @@ func main() {
 	fmt.Printf("%T, %v", pLogicalDevice, pLogicalDevice)
 }
 
+func deviceWaitTillComplete(pLogicalDevice *vk.Device) {
+	// Wait till the device is finished executing any work on behalf of your application
+	// Wait on the host for the completion of outstanding queue operations for all queues on a given logical device
+	fmt.Println("Waiting for the device to complete all pending queue operations.....")
+	result := vk.DeviceWaitIdle(*pLogicalDevice)
+	if result != vk.Success {
+		fmt.Printf("Failed to wait for device to complete the execution with error : %v", result)
+	}
+	fmt.Println("All the queue operations are complete, device is free now....")
+}
 func getDeviceExtensionProperties(physicalDevice vk.PhysicalDevice) {
 	fmt.Println("Listing available Extensions for device only..............")
 	var propertyCount uint32
