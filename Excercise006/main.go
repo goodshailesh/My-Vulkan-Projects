@@ -58,6 +58,10 @@ func main() {
 	memoryProperties = getPhysicalDeviceMemoryProperties(physicalDevices[0])
 	pQueueFamilyProperties = getPhysicalDeviceQueueFamilyProperties(physicalDevices[0])
 	pLogicalDevice = createDevice(physicalDevices[0], physicalDeviceFeatures)
+	getInstanceLayerProperties()
+	getDeviceLayerProperties(physicalDevices[0])
+	getInstanceExtensionProperties()
+	getDeviceExtensionProperties(physicalDevices[0])
 
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[0], &memoryProperties)
@@ -71,6 +75,60 @@ func main() {
 	fmt.Println(pQueueFamilyProperties)
 	uitlPrintDeviceQueueFamilyProperties(pQueueFamilyProperties)
 	fmt.Printf("%T, %v", pLogicalDevice, pLogicalDevice)
+}
+
+func getDeviceExtensionProperties(physicalDevice vk.PhysicalDevice) {
+	fmt.Println("Listing available Extensions for device only..............")
+	var propertyCount uint32
+	vk.EnumerateDeviceExtensionProperties(physicalDevice, "", &propertyCount, nil)
+	var pProperties []vk.ExtensionProperties = make([]vk.ExtensionProperties, propertyCount)
+	vk.EnumerateDeviceExtensionProperties(physicalDevice, "", &propertyCount, pProperties)
+	for i := 0; i < int(propertyCount); i++ {
+		p := pProperties[i]
+		p.Deref()
+		fmt.Printf("\t*\tExtensionName: %v\n\t\tSpecVersion: %v\n", vk.ToString(p.ExtensionName[:]), p.SpecVersion)
+	}
+}
+
+func getInstanceExtensionProperties() {
+	fmt.Println("Listing available Extensions for instance only..............")
+	var propertyCount uint32
+	//vk.EnumerateInstanceLayerProperties(&propertyCount, nil)
+	vk.EnumerateInstanceExtensionProperties("", &propertyCount, nil)
+	var pProperties []vk.ExtensionProperties = make([]vk.ExtensionProperties, propertyCount)
+	//vk.EnumerateInstanceLayerProperties(&propertyCount, pProperties)
+	vk.EnumerateInstanceExtensionProperties("", &propertyCount, pProperties)
+	for i := 0; i < int(propertyCount); i++ {
+		p := pProperties[i]
+		p.Deref()
+		fmt.Printf("\t*\tExtensionName: %v\n\t\tSpecVersion: %v\n", vk.ToString(p.ExtensionName[:]), p.SpecVersion)
+	}
+}
+
+func getDeviceLayerProperties(physicalDevice vk.PhysicalDevice) {
+	fmt.Println("Listing available layers for device only..............")
+	var propertyCount uint32
+	vk.EnumerateDeviceLayerProperties(physicalDevice, &propertyCount, nil)
+	var pProperties []vk.LayerProperties = make([]vk.LayerProperties, propertyCount)
+	vk.EnumerateDeviceLayerProperties(physicalDevice, &propertyCount, pProperties)
+	for i := 0; i < int(propertyCount); i++ {
+		p := pProperties[i]
+		p.Deref()
+		fmt.Printf("\t*\tName: %v\n\t\tDescription: %v\n\t\tSpecVersion: %v\n\t\tImplementationVersion: %v\n", vk.ToString(p.LayerName[:]), vk.ToString(p.Description[:]), p.SpecVersion, p.ImplementationVersion)
+	}
+}
+
+func getInstanceLayerProperties() {
+	fmt.Println("Listing available layers for instance only..............")
+	var propertyCount uint32
+	vk.EnumerateInstanceLayerProperties(&propertyCount, nil)
+	var pProperties []vk.LayerProperties = make([]vk.LayerProperties, propertyCount)
+	vk.EnumerateInstanceLayerProperties(&propertyCount, pProperties)
+	for i := 0; i < int(propertyCount); i++ {
+		p := pProperties[i]
+		p.Deref()
+		fmt.Printf("\t*\tName: %v\n\t\tDescription: %v\n\t\tSpecVersion: %v\n\t\tImplementationVersion: %v\n", vk.ToString(p.LayerName[:]), vk.ToString(p.Description[:]), p.SpecVersion, p.ImplementationVersion)
+	}
 }
 
 func createDevice(physicalDevice vk.PhysicalDevice, physicalDeviceFeatures vk.PhysicalDeviceFeatures) *vk.Device {
