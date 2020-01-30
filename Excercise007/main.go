@@ -625,6 +625,33 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 		"FormatEndRange":               vk.FormatEndRange,
 		//"FormatRangeSize":              vk.FormatRangeSize,
 	}
+
+	var formatPropertiesFlags = map[string]vk.FormatFeatureFlagBits{
+		"FormatFeatureSampledImageBit":                                                     vk.FormatFeatureSampledImageBit,
+		"FormatFeatureStorageImageBit":                                                     vk.FormatFeatureStorageImageBit,
+		"FormatFeatureStorageImageAtomicBit":                                               vk.FormatFeatureStorageImageAtomicBit,
+		"FormatFeatureUniformTexelBufferBit":                                               vk.FormatFeatureUniformTexelBufferBit,
+		"FormatFeatureStorageTexelBufferBit":                                               vk.FormatFeatureStorageTexelBufferBit,
+		"FormatFeatureStorageTexelBufferAtomicBit":                                         vk.FormatFeatureStorageTexelBufferAtomicBit,
+		"FormatFeatureVertexBufferBit":                                                     vk.FormatFeatureVertexBufferBit,
+		"FormatFeatureColorAttachmentBit":                                                  vk.FormatFeatureColorAttachmentBit,
+		"FormatFeatureColorAttachmentBlendBit":                                             vk.FormatFeatureColorAttachmentBlendBit,
+		"FormatFeatureDepthStencilAttachmentBit":                                           vk.FormatFeatureDepthStencilAttachmentBit,
+		"FormatFeatureBlitSrcBit":                                                          vk.FormatFeatureBlitSrcBit,
+		"FormatFeatureBlitDstBit":                                                          vk.FormatFeatureBlitDstBit,
+		"FormatFeatureSampledImageFilterLinearBit":                                         vk.FormatFeatureSampledImageFilterLinearBit,
+		"FormatFeatureTransferSrcBit":                                                      vk.FormatFeatureTransferSrcBit,
+		"FormatFeatureTransferDstBit":                                                      vk.FormatFeatureTransferDstBit,
+		"FormatFeatureMidpointChromaSamplesBit":                                            vk.FormatFeatureMidpointChromaSamplesBit,
+		"FormatFeatureSampledImageYcbcrConversionLinearFilterBit":                          vk.FormatFeatureSampledImageYcbcrConversionLinearFilterBit,
+		"FormatFeatureSampledImageYcbcrConversionSeparateReconstructionFilterBit":          vk.FormatFeatureSampledImageYcbcrConversionSeparateReconstructionFilterBit,
+		"FormatFeatureSampledImageYcbcrConversionChromaReconstructionExplicitBit":          vk.FormatFeatureSampledImageYcbcrConversionChromaReconstructionExplicitBit,
+		"FormatFeatureSampledImageYcbcrConversionChromaReconstructionExplicitForceableBit": vk.FormatFeatureSampledImageYcbcrConversionChromaReconstructionExplicitForceableBit,
+		"FormatFeatureDisjointBit":                                                         vk.FormatFeatureDisjointBit,
+		"FormatFeatureCositedChromaSamplesBit":                                             vk.FormatFeatureCositedChromaSamplesBit,
+		"FormatFeatureSampledImageFilterCubicBitImg":                                       vk.FormatFeatureSampledImageFilterCubicBitImg,
+		"FormatFeatureSampledImageFilterMinmaxBit":                                         vk.FormatFeatureSampledImageFilterMinmaxBit,
+	}
 	// For 2D image with TillingLinear
 	fmt.Println("\n\nChecking supported Iamge/Texture Formats for 2D image with TillingLinear ......")
 	var imageType vk.ImageType = vk.ImageType2d
@@ -635,7 +662,7 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 	for key, format := range formats {
 		result := vk.GetPhysicalDeviceImageFormatProperties(physicalDevice, format, imageType, imageTiling, vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit), imageCreateFlags, &imageFormatProperties)
 		if result == vk.Success {
-			fmt.Printf("Supported Format [%v]: %v\n", key, format)
+			fmt.Printf("Supported Format [%v]: FlagValue [%v]\nFollowing are the Features/Properties available in GPU against above format\n", key, format)
 			fmt.Printf("\t*\tImageType: %v\t\t \t\t\n", imageType)
 			fmt.Printf("\t*\tImageTiling: %v\t\t \t\t\n", imageTiling)
 			imageFormatProperties.Deref()
@@ -651,7 +678,31 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 			fmt.Printf("\t*\tMaxMipMap Levels: %v\t\t \t\t\n", maxmipmaplevel)
 			fmt.Printf("\t*\tMaxArrayLayers: %v\t\t \t\t\n", maxarraylayers)
 			fmt.Printf("\t*\tMaxResourceSize: %v\t\t \t\t\n", maxResourceSize)
+			// Printing FormatProperties
+			fmt.Printf("\t*\tFormatProperties: \t\t \t\t\n")
+			var formatProperties vk.FormatProperties
+			vk.GetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties)
+			formatProperties.Deref()
+			fmt.Printf("\t\t\t*\tAll LinearTilingFeatures present: %v\t\t \t\t\n", vk.FormatFeatureFlagBits(formatProperties.LinearTilingFeatures))
+			for key, flag := range formatPropertiesFlags {
+				if flag&vk.FormatFeatureFlagBits(formatProperties.LinearTilingFeatures) != 0x00000000 {
+					fmt.Printf("\t\t\t\t\t*\tLinearTilingFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.LinearTilingFeatures))
+				}
+			}
+			fmt.Printf("\t\t\t*\tAll OptimalTilingFeatures present: %v\t\t \t\t\n", vk.FormatFeatureFlagBits(formatProperties.OptimalTilingFeatures))
+			for key, flag := range formatPropertiesFlags {
+				if flag&vk.FormatFeatureFlagBits(formatProperties.OptimalTilingFeatures) != 0x00000000 {
+					fmt.Printf("\t\t\t\t\t*\tOptimalTilingFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.OptimalTilingFeatures))
+				}
+			}
+			fmt.Printf("\t\t\t*\tAll BufferFeatures present: %v\t\t \t\t\n", vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
+			for key, flag := range formatPropertiesFlags {
+				if flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures) != 0x00000000 {
+					fmt.Printf("\t\t\t\t\t*\tBufferFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
+				}
+			}
 		}
+
 	}
 	// For 3D image with TillingLinear
 	fmt.Println("\n\nChecking supported Image/Texture Formats for 3D image with TillingLinear ......")
@@ -663,7 +714,7 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 	for key, format := range formats {
 		result := vk.GetPhysicalDeviceImageFormatProperties(physicalDevice, format, imageType, imageTiling, vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit), imageCreateFlags, &imageFormatProperties)
 		if result == vk.Success {
-			fmt.Printf("Supported Format [%v]: %v\n", key, format)
+			fmt.Printf("Supported Format [%v]: FlagValue [%v]\nFollowing are the Features/Properties available in GPU against above format\n", key, format)
 			fmt.Printf("\t*\tImageType: %v\t\t \t\t\n", imageType)
 			fmt.Printf("\t*\tImageTiling: %v\t\t \t\t\n", imageTiling)
 			imageFormatProperties.Deref()
@@ -679,6 +730,29 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 			fmt.Printf("\t*\tMaxMipMap Levels: %v\t\t \t\t\n", maxmipmaplevel)
 			fmt.Printf("\t*\tMaxArrayLayers: %v\t\t \t\t\n", maxarraylayers)
 			fmt.Printf("\t*\tMaxResourceSize: %v\t\t \t\t\n", maxResourceSize)
+			// Printing FormatProperties
+			fmt.Printf("\t*\tFormatProperties: \t\t \t\t\n")
+			var formatProperties vk.FormatProperties
+			vk.GetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProperties)
+			formatProperties.Deref()
+			fmt.Printf("\t\t\t*\tAll LinearTilingFeatures present: %v\t\t \t\t\n", vk.FormatFeatureFlagBits(formatProperties.LinearTilingFeatures))
+			for key, flag := range formatPropertiesFlags {
+				if flag&vk.FormatFeatureFlagBits(formatProperties.LinearTilingFeatures) != 0x00000000 {
+					fmt.Printf("\t\t\t\t\t*\tLinearTilingFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.LinearTilingFeatures))
+				}
+			}
+			fmt.Printf("\t\t\t*\tAll OptimalTilingFeatures present: %v\t\t \t\t\n", vk.FormatFeatureFlagBits(formatProperties.OptimalTilingFeatures))
+			for key, flag := range formatPropertiesFlags {
+				if flag&vk.FormatFeatureFlagBits(formatProperties.OptimalTilingFeatures) != 0x00000000 {
+					fmt.Printf("\t\t\t\t\t*\tOptimalTilingFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.OptimalTilingFeatures))
+				}
+			}
+			fmt.Printf("\t\t\t*\tAll BufferFeatures present: %v\t\t \t\t\n", vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
+			for key, flag := range formatPropertiesFlags {
+				if flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures) != 0x00000000 {
+					fmt.Printf("\t\t\t\t\t*\tBufferFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
+				}
+			}
 		}
 	}
 }
