@@ -625,15 +625,45 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 		"FormatEndRange":               vk.FormatEndRange,
 		//"FormatRangeSize":              vk.FormatRangeSize,
 	}
-	var imageType vk.ImageType = vk.ImageType3d
+	// For 2D image with TillingLinear
+	fmt.Println("\n\nChecking supported Iamge/Texture Formats for 2D image with TillingLinear ......")
+	var imageType vk.ImageType = vk.ImageType2d
 	var imageTiling vk.ImageTiling = vk.ImageTilingLinear
 	//var imageUsageFlags vk.ImageUsageFlagBits
 	var imageCreateFlags vk.ImageCreateFlags
 	var imageFormatProperties vk.ImageFormatProperties
 	for key, format := range formats {
-		fmt.Printf("Supported Format [%v]: %v\n", key, format)
 		result := vk.GetPhysicalDeviceImageFormatProperties(physicalDevice, format, imageType, imageTiling, vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit), imageCreateFlags, &imageFormatProperties)
 		if result == vk.Success {
+			fmt.Printf("Supported Format [%v]: %v\n", key, format)
+			fmt.Printf("\t*\tImageType: %v\t\t \t\t\n", imageType)
+			fmt.Printf("\t*\tImageTiling: %v\t\t \t\t\n", imageTiling)
+			imageFormatProperties.Deref()
+			extent := imageFormatProperties.MaxExtent
+			maxmipmaplevel := imageFormatProperties.MaxMipLevels
+			maxarraylayers := imageFormatProperties.MaxArrayLayers
+			maxResourceSize := imageFormatProperties.MaxResourceSize
+			extent.Deref()
+			fmt.Printf("\t*\tExtent: \t\t \t\t\n")
+			fmt.Printf("\t\t\tWidth: %v\t\t\n", extent.Width)
+			fmt.Printf("\t\t\tHeight: %v\t\t\n", extent.Height)
+			fmt.Printf("\t\t\tDepth: %v\t\t\n", extent.Depth)
+			fmt.Printf("\t*\tMaxMipMap Levels: %v\t\t \t\t\n", maxmipmaplevel)
+			fmt.Printf("\t*\tMaxArrayLayers: %v\t\t \t\t\n", maxarraylayers)
+			fmt.Printf("\t*\tMaxResourceSize: %v\t\t \t\t\n", maxResourceSize)
+		}
+	}
+	// For 3D image with TillingLinear
+	fmt.Println("\n\nChecking supported Image/Texture Formats for 3D image with TillingLinear ......")
+	imageType = vk.ImageType3d
+	imageTiling = vk.ImageTilingLinear
+	//var imageUsageFlags vk.ImageUsageFlagBits
+	//var imageCreateFlags vk.ImageCreateFlags
+	//var imageFormatProperties vk.ImageFormatProperties
+	for key, format := range formats {
+		result := vk.GetPhysicalDeviceImageFormatProperties(physicalDevice, format, imageType, imageTiling, vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit), imageCreateFlags, &imageFormatProperties)
+		if result == vk.Success {
+			fmt.Printf("Supported Format [%v]: %v\n", key, format)
 			fmt.Printf("\t*\tImageType: %v\t\t \t\t\n", imageType)
 			fmt.Printf("\t*\tImageTiling: %v\t\t \t\t\n", imageTiling)
 			imageFormatProperties.Deref()
