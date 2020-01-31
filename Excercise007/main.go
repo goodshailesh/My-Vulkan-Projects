@@ -153,7 +153,7 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	var imageCreateInfo = vk.ImageCreateInfo{
 		SType:                 vk.StructureTypeImageCreateInfo,
 		ImageType:             vk.ImageType2d,
-		Format:                vk.FormatR32g32b32a32Sint,
+		Format:                vk.FormatB8g8r8a8Unorm, //vk.FormatR32g32b32a32Sint,
 		Extent:                extent,
 		MipLevels:             10,
 		ArrayLayers:           1,
@@ -678,7 +678,7 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 		"FormatFeatureSampledImageFilterMinmaxBit":                                         vk.FormatFeatureSampledImageFilterMinmaxBit,
 	}
 	// For 2D image with TillingLinear
-	fmt.Println("\n\nChecking supported Iamge/Texture Formats for 2D image with TillingLinear ......")
+	fmt.Println("\n\nChecking supported Image/Texture Formats for 2D image with TillingLinear ......")
 	var imageType vk.ImageType = vk.ImageType2d
 	var imageTiling vk.ImageTiling = vk.ImageTilingLinear
 	//var imageUsageFlags vk.ImageUsageFlagBits
@@ -726,6 +726,8 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 					fmt.Printf("\t\t\t\t\t*\tBufferFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
 				}
 			}
+		} else {
+			fmt.Println("[2D] No support found for Format : ", key)
 		}
 
 	}
@@ -778,6 +780,8 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 					fmt.Printf("\t\t\t\t\t*\tBufferFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
 				}
 			}
+		} else {
+			fmt.Println("[3D] No support found for Format : ", key)
 		}
 	}
 }
