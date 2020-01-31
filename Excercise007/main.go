@@ -57,30 +57,34 @@ func main() {
 		fmt.Println(fmt.Errorf("Error creating instance: %v", result))
 	}
 
+	var physicalDeviceIndex int = 1 // 0= NVIDIA Geforce MX150, 1=Intel(R) UHD Graphics 620 [On my HP Laptop]
+
 	physicalDevices = getPhysicalDevices(instance)
-	physicalDeviceProperties = getPhysicalDeviceProperties(physicalDevices[0])
-	physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevices[0])
-	memoryProperties = getPhysicalDeviceMemoryProperties(physicalDevices[0])
-	pQueueFamilyProperties = getPhysicalDeviceQueueFamilyProperties(physicalDevices[0])
-	pLogicalDevice = createDevice(physicalDevices[0], physicalDeviceFeatures)
+	physicalDeviceProperties = getPhysicalDeviceProperties(physicalDevices[physicalDeviceIndex])
+	physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevices[physicalDeviceIndex])
+	memoryProperties = getPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex])
+	pQueueFamilyProperties = getPhysicalDeviceQueueFamilyProperties(physicalDevices[physicalDeviceIndex])
+	pLogicalDevice = createDevice(physicalDevices[physicalDeviceIndex], physicalDeviceFeatures)
 	getInstanceLayerProperties()
-	getDeviceLayerProperties(physicalDevices[0])
+	getDeviceLayerProperties(physicalDevices[physicalDeviceIndex])
 	getInstanceExtensionProperties()
-	getDeviceExtensionProperties(physicalDevices[0])
+	getDeviceExtensionProperties(physicalDevices[physicalDeviceIndex])
 	deviceWaitTillComplete(pLogicalDevice)
 	commandPool = createCommandPool(*pLogicalDevice)
 	commandBuffers = allocateCommandBuffers(*pLogicalDevice, *commandPool, 1)
 	srcBuffer = createBuffer(*pLogicalDevice)
-	imageFormatProperties = getPhysicalDeviceImageProperties(physicalDevices[0])
+	imageFormatProperties = getPhysicalDeviceImageProperties(physicalDevices[physicalDeviceIndex])
 	imageBuffer = createImageBuffer(pLogicalDevice)
-	checkSupportedImageFormat(physicalDevices[0])
+	// List Supported Image Format by GPU
+	//checkSupportedImageFormat(physicalDevices[physicalDeviceIndex])
 	getBufferMemoryRequirements(*pLogicalDevice, *srcBuffer)
 	// Get the memory properties of the physical device.
-	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[0], &memoryProperties)
+	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex], &memoryProperties)
 
 	// Verbose - Please don't remove, igrnoe
 	physicalDeviceProperties.Deref()
 	fmt.Println(physicalDevices)
+	//Physical Device name
 	fmt.Println(vk.ToString(physicalDeviceProperties.DeviceName[:]))
 	fmt.Println(physicalDeviceFeatures)
 	fmt.Println(memoryProperties)
@@ -153,7 +157,7 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	var imageCreateInfo = vk.ImageCreateInfo{
 		SType:                 vk.StructureTypeImageCreateInfo,
 		ImageType:             vk.ImageType2d,
-		Format:                vk.FormatB8g8r8a8Unorm, //vk.FormatR32g32b32a32Sint,
+		Format:                vk.FormatR32g32b32a32Sint,
 		Extent:                extent,
 		MipLevels:             10,
 		ArrayLayers:           1,
@@ -678,7 +682,7 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 		"FormatFeatureSampledImageFilterMinmaxBit":                                         vk.FormatFeatureSampledImageFilterMinmaxBit,
 	}
 	// For 2D image with TillingLinear
-	fmt.Println("\n\nChecking supported Image/Texture Formats for 2D image with TillingLinear ......")
+	fmt.Println("\n\nChecking supported Iamge/Texture Formats for 2D image with TillingLinear ......")
 	var imageType vk.ImageType = vk.ImageType2d
 	var imageTiling vk.ImageTiling = vk.ImageTilingLinear
 	//var imageUsageFlags vk.ImageUsageFlagBits
@@ -726,8 +730,6 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 					fmt.Printf("\t\t\t\t\t*\tBufferFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
 				}
 			}
-		} else {
-			fmt.Println("[2D] No support found for Format : ", key)
 		}
 
 	}
@@ -780,8 +782,6 @@ func checkSupportedImageFormat(physicalDevice vk.PhysicalDevice) {
 					fmt.Printf("\t\t\t\t\t*\tBufferFeatures: vk.%v[%v]\t\t \t\t\n", key, flag&vk.FormatFeatureFlagBits(formatProperties.BufferFeatures))
 				}
 			}
-		} else {
-			fmt.Println("[3D] No support found for Format : ", key)
 		}
 	}
 }
