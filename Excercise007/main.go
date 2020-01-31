@@ -186,7 +186,7 @@ func getBufferMemoryRequirements(pLogicalDevice vk.Device, buffer vk.Buffer) {
 	vk.GetBufferMemoryRequirements(pLogicalDevice, buffer, &memoryRequirements)
 	memoryRequirements.Deref()
 	fmt.Println("\t\t* Size Required ...", memoryRequirements.Size, " Bytes")
-	fmt.Println("\t\t* Alignement Required ...", memoryRequirements.Alignment, " Bytes")
+	fmt.Println("\t\t* Alignment Required ...", memoryRequirements.Alignment, " Bytes")
 	fmt.Println("\t\t* MemoryTypes Required ...")
 	for key, mp := range memoryProperties {
 		if mp&vk.MemoryPropertyFlagBits(memoryRequirements.MemoryTypeBits) != 0x00000000 {
