@@ -63,6 +63,7 @@ func main() {
 	physicalDeviceProperties = getPhysicalDeviceProperties(physicalDevices[physicalDeviceIndex])
 	physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevices[physicalDeviceIndex])
 	memoryProperties = getPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex])
+	//printPhysicalDeviceMemoryProperties(memoryProperties)
 	pQueueFamilyProperties = getPhysicalDeviceQueueFamilyProperties(physicalDevices[physicalDeviceIndex])
 	pLogicalDevice = createDevice(physicalDevices[physicalDeviceIndex], physicalDeviceFeatures)
 	getInstanceLayerProperties()
@@ -146,6 +147,23 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 	return &commandPool
 }
 
+// func mapHostMemory(pLogicalDevice vk.Device) {
+// 	var memReqs vk.MemoryRequirements
+// 	vk.GetImageMemoryRequirements(dev, s.depth.image, &memReqs)
+// 	memReqs.Deref()
+
+// 	memAlloc = &vk.MemoryAllocateInfo{
+// 		SType:           vk.StructureTypeMemoryAllocateInfo,
+// 		AllocationSize:  memReqs.Size,
+// 		MemoryTypeIndex: memTypeIndex,
+// 	var mem vk.DeviceMemory
+// 	ret = vk.AllocateMemory(dev, tex.memAlloc, nil, &mem)
+// 	var pData unsafe.Pointer
+// 	var hostMemory vk.DeviceMemory
+
+// 	result := vk.MapMemory(pLogicalDevice, hostMemory, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, ppData*unsafe.Pointer)
+// }
+
 func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	fmt.Println("Creating image buffer...........")
 	var imageBuffer vk.Image
@@ -157,7 +175,7 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	var imageCreateInfo = vk.ImageCreateInfo{
 		SType:                 vk.StructureTypeImageCreateInfo,
 		ImageType:             vk.ImageType2d,
-		Format:                vk.FormatR32g32b32a32Sint,
+		Format:                vk.FormatR8g8b8a8Unorm, //vk.FormatR8g8b8a8Srgb,
 		Extent:                extent,
 		MipLevels:             10,
 		ArrayLayers:           1,
@@ -206,7 +224,7 @@ func getPhysicalDeviceImageProperties(physicalDevice vk.PhysicalDevice) vk.Image
 	//var imageUsageFlags vk.ImageUsageFlagBits
 	var imageCreateFlags vk.ImageCreateFlags
 	var imageFormatProperties vk.ImageFormatProperties
-	result := vk.GetPhysicalDeviceImageFormatProperties(physicalDevice, vk.FormatB8g8r8Unorm, imageType, imageTiling, vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit), imageCreateFlags, &imageFormatProperties)
+	result := vk.GetPhysicalDeviceImageFormatProperties(physicalDevice, vk.FormatR8g8b8a8Unorm, imageType, imageTiling, vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit), imageCreateFlags, &imageFormatProperties)
 	if result != vk.Success {
 		fmt.Printf("Failed to get Physical device supported image formats with error : %v", result)
 	}
@@ -383,6 +401,15 @@ func getPhysicalDeviceQueueFamilyProperties(physicalDevice vk.PhysicalDevice) []
 	pQueueFamilyProperties = make([]vk.QueueFamilyProperties, pQueueFamilyPropertyCount)
 	vk.GetPhysicalDeviceQueueFamilyProperties(physicalDevice, &pQueueFamilyPropertyCount, pQueueFamilyProperties)
 	return pQueueFamilyProperties
+}
+
+func printPhysicalDeviceMemoryProperties(memoryProperties vk.PhysicalDeviceMemoryProperties) {
+	fmt.Println("Printing Device memory properties.......................")
+	memoryProperties.Deref()
+	fmt.Printf("\t*\tMemoryTypeCount: \t\t \t\t\n", memoryProperties.MemoryTypeCount)
+	fmt.Printf("\t*\tMemoryHeapCount: \t\t \t\t\n", memoryProperties.MemoryTypeCount)
+	//MemoryTypes     [32]MemoryType
+	//MemoryHeaps     [16]MemoryHeap
 }
 
 func getPhysicalDeviceMemoryProperties(physicalDevice vk.PhysicalDevice) vk.PhysicalDeviceMemoryProperties {
