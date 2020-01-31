@@ -172,13 +172,27 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 }
 
 func getBufferMemoryRequirements(pLogicalDevice vk.Device, buffer vk.Buffer) {
+	var memoryProperties = map[string]vk.MemoryPropertyFlagBits{
+		"MemoryPropertyDeviceLocalBit":     vk.MemoryPropertyDeviceLocalBit,
+		"MemoryPropertyHostVisibleBit":     vk.MemoryPropertyHostVisibleBit,
+		"MemoryPropertyHostCoherentBit":    vk.MemoryPropertyHostCoherentBit,
+		"MemoryPropertyHostCachedBit":      vk.MemoryPropertyHostCachedBit,
+		"MemoryPropertyLazilyAllocatedBit": vk.MemoryPropertyLazilyAllocatedBit,
+		"MemoryPropertyProtectedBit":       vk.MemoryPropertyProtectedBit,
+		"MemoryPropertyFlagBitsMaxEnum":    vk.MemoryPropertyFlagBitsMaxEnum,
+	}
 	fmt.Println("Printing Buffer memory requirements..........")
 	var memoryRequirements vk.MemoryRequirements
 	vk.GetBufferMemoryRequirements(pLogicalDevice, buffer, &memoryRequirements)
 	memoryRequirements.Deref()
 	fmt.Println("\t\t* Size Required ...", memoryRequirements.Size, " Bytes")
-	fmt.Println("\t\t* Alignement Required ...", memoryRequirements.Alignment)
-	fmt.Println("\t\t* MemoryTypeBits Required ...", memoryRequirements.MemoryTypeBits)
+	fmt.Println("\t\t* Alignement Required ...", memoryRequirements.Alignment, " Bytes")
+	fmt.Println("\t\t* MemoryTypes Required ...")
+	for key, mp := range memoryProperties {
+		if mp&vk.MemoryPropertyFlagBits(memoryRequirements.MemoryTypeBits) != 0x00000000 {
+			fmt.Println("\t\t\t\t* ", key)
+		}
+	}
 }
 
 func getPhysicalDeviceImageProperties(physicalDevice vk.PhysicalDevice) vk.ImageFormatProperties {
