@@ -74,6 +74,7 @@ func main() {
 	imageFormatProperties = getPhysicalDeviceImageProperties(physicalDevices[0])
 	imageBuffer = createImageBuffer(pLogicalDevice)
 	checkSupportedImageFormat(physicalDevices[0])
+	getBufferMemoryRequirements(*pLogicalDevice, *srcBuffer)
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[0], &memoryProperties)
 
@@ -152,7 +153,7 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	var imageCreateInfo = vk.ImageCreateInfo{
 		SType:                 vk.StructureTypeImageCreateInfo,
 		ImageType:             vk.ImageType2d,
-		Format:                vk.FormatB8g8r8a8Srgb,
+		Format:                vk.FormatR32g32b32a32Sint,
 		Extent:                extent,
 		MipLevels:             10,
 		ArrayLayers:           1,
@@ -168,6 +169,16 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 		fmt.Printf("Failed to create image buffer with error : %v", result)
 	}
 	return &imageBuffer
+}
+
+func getBufferMemoryRequirements(pLogicalDevice vk.Device, buffer vk.Buffer) {
+	fmt.Println("Printing Buffer memory requirements..........")
+	var memoryRequirements vk.MemoryRequirements
+	vk.GetBufferMemoryRequirements(pLogicalDevice, buffer, &memoryRequirements)
+	memoryRequirements.Deref()
+	fmt.Println("\t\t* Size Required ...", memoryRequirements.Size, " Bytes")
+	fmt.Println("\t\t* Alignement Required ...", memoryRequirements.Alignment)
+	fmt.Println("\t\t* MemoryTypeBits Required ...", memoryRequirements.MemoryTypeBits)
 }
 
 func getPhysicalDeviceImageProperties(physicalDevice vk.PhysicalDevice) vk.ImageFormatProperties {
@@ -205,7 +216,7 @@ func createBuffer(device vk.Device) *vk.Buffer {
 	var bufferCreateInfo = vk.BufferCreateInfo{
 		SType:       vk.StructureTypeBufferCreateInfo,
 		Flags:       0x0,
-		Size:        1024, // 1Kb
+		Size:        1024 * 1024, // 1Mb
 		Usage:       vk.BufferUsageFlags(vk.BufferUsageTransferSrcBit | vk.BufferUsageTransferDstBit),
 		SharingMode: vk.SharingModeExclusive,
 	}
