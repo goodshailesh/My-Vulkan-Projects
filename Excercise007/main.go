@@ -92,7 +92,8 @@ func main() {
 
 	// Verbose - Please don't remove, ignore
 	physicalDeviceProperties.Deref()
-	fmt.Println(physicalDevices)
+	fmt.Println("\n===========================\n    OUTPUTS    \n===========================")
+	fmt.Println("Physical Devices present....", physicalDevices)
 	//Physical Device name
 	fmt.Println(vk.ToString(physicalDeviceProperties.DeviceName[:]))
 	fmt.Println(physicalDeviceFeatures)
@@ -158,6 +159,7 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 }
 
 func createImageView(pLogicalDevice vk.Device, imageBuffer vk.Image) *vk.ImageView {
+	fmt.Println("Creating Image View........")
 	var imageView vk.ImageView
 	var imageViewCreateInfo = vk.ImageViewCreateInfo{
 		SType:    vk.StructureTypeImageViewCreateInfo,
