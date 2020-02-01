@@ -187,8 +187,12 @@ func createImageView(pLogicalDevice vk.Device, imageBuffer vk.Image) *vk.ImageVi
 }
 
 func bindImageMemory(pLogicalDevice vk.Device, imageBuffer vk.Image, pHostMemory *vk.DeviceMemory) {
-	//var deviceMemory vk.DeviceMemory
-	//result := vk.BindImageMemory(pLogicalDevice, imageBuffer, deviceMemory, vk.DeviceSize(0))
+	// Before a resource such as a buffer or image can be used by Vulkan to store data, memory must be
+	// bound to it. Before memory is bound to a resource, you should determine what type of memory and
+	// how much of it the resource requires. There is a different function for buffers and for textures.
+	// They are vkGetBufferMemoryRequirements() and vkGetImageMemoryRequirements()
+	// The only difference between these two functions is that vkGetBufferMemoryRequirements() takes a
+	// handle to a buffer object and vkGetImageMemoryRequirements() takes a handle to an image object.
 	fmt.Println("Binding Device Memory............")
 	result := vk.BindImageMemory(pLogicalDevice, imageBuffer, *pHostMemory, vk.DeviceSize(0))
 	if result != vk.Success {
@@ -223,6 +227,13 @@ func bindImageMemory(pLogicalDevice vk.Device, imageBuffer vk.Image, pHostMemory
 // }
 
 func mapHostMemoryForImage(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) (unsafe.Pointer, *vk.DeviceMemory) {
+	// Access to this memory object must be externally synchronized
+	// A flush is necessary if the host has written to a mapped memory
+	// region and needs the device to see the effect of those writes.
+	// However, if the device writes to a mapped memory region and you
+	// need the host to see the effect of the device’s writes, you need
+	// to invalidate any caches on the host that might now hold stale data.
+	// To do this, call vkInvalidateMappedMemoryRanges()
 	var memReqs vk.MemoryRequirements
 	vk.GetImageMemoryRequirements(pLogicalDevice, imageBuffer, &memReqs)
 	memReqs.Deref()
