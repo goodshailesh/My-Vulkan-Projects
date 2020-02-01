@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/vulkan-go/glfw/v3.3/glfw"
 	vk "github.com/vulkan-go/vulkan"
@@ -33,7 +34,8 @@ func main() {
 	var commandBuffers []vk.CommandBuffer
 	var srcBuffer, dstBuffer *vk.Buffer
 	var imageFormatProperties vk.ImageFormatProperties
-	var imageBuffer *vk.Image
+	var pImageBuffer *vk.Image
+	var pHostMemory unsafe.Pointer
 
 	//Create Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
@@ -75,14 +77,15 @@ func main() {
 	commandBuffers = allocateCommandBuffers(*pLogicalDevice, *commandPool, 1)
 	srcBuffer = createBuffer(*pLogicalDevice)
 	imageFormatProperties = getPhysicalDeviceImageProperties(physicalDevices[physicalDeviceIndex])
-	imageBuffer = createImageBuffer(pLogicalDevice)
+	pImageBuffer = createImageBuffer(pLogicalDevice)
 	// List Supported Image Format by GPU
 	//checkSupportedImageFormat(physicalDevices[physicalDeviceIndex])
 	getBufferMemoryRequirements(*pLogicalDevice, *srcBuffer)
+	pHostMemory = mapHostMemory(*pLogicalDevice, memoryProperties, *pImageBuffer)
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex], &memoryProperties)
 
-	// Verbose - Please don't remove, igrnoe
+	// Verbose - Please don't remove, ignore
 	physicalDeviceProperties.Deref()
 	fmt.Println(physicalDevices)
 	//Physical Device name
@@ -96,7 +99,8 @@ func main() {
 	fmt.Println(&imageFormatProperties)
 	fmt.Println(commandPool)
 	fmt.Println(commandBuffers)
-	fmt.Println(imageBuffer)
+	fmt.Println(pImageBuffer)
+	fmt.Println("Host Memory Pointer ", pHostMemory)
 
 	//Cleaningup code
 	vk.FreeCommandBuffers(*pLogicalDevice, *commandPool, 1, commandBuffers)
@@ -147,40 +151,28 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 	return &commandPool
 }
 
-// func mapHostMemory(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) {
-// 	// var memReqs vk.MemoryRequirements
-// 	// vk.GetImageMemoryRequirements(dev, s.depth.image, &memReqs)
-// 	// memReqs.Deref()
+func mapHostMemory(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) unsafe.Pointer {
+	var memReqs vk.MemoryRequirements
+	vk.GetImageMemoryRequirements(pLogicalDevice, imageBuffer, &memReqs)
+	memReqs.Deref()
+	memoryProperties.Deref()
 
-// 	// memAlloc = &vk.MemoryAllocateInfo{
-// 	// 	SType:           vk.StructureTypeMemoryAllocateInfo,
-// 	// 	AllocationSize:  memReqs.Size,
-// 	// 	MemoryTypeIndex: memTypeIndex,
-// 	// }
-// 	// var mem vk.DeviceMemory
-// 	// result := vk.AllocateMemory(dev, tex.memAlloc, nil, &mem)
-// 	// var pData unsafe.Pointer
-// 	// var hostMemory vk.DeviceMemory
-
-// 	// result := vk.MapMemory(pLogicalDevice, hostMemory, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, ppData*unsafe.Pointer)
-
-// 	var memReqs vk.MemoryRequirements
-// 	vk.GetImageMemoryRequirements(pLogicalDevice, imageBuffer, &memReqs)
-// 	memReqs.Deref()
-// 	memoryProperties.Deref()
-
-// 	var pData unsafe.Pointer
-// 	memAlloc := &vk.MemoryAllocateInfo{
-// 		SType:           vk.StructureTypeMemoryAllocateInfo,
-// 		AllocationSize:  memReqs.Size,
-// 		MemoryTypeIndex: 0, //MemoryTypeIndex is an index into the memory type array returned from a call to vkGetPhysicalDeviceMemoryProperties()
-// 		// I found index of memory contaning 'MemoryPropertyDeviceLocalBit' and 'MemoryPropertyHostVisibleBit', from the output of printPhysicalDeviceMemoryProperties() function
-// 	}
-// 	var mem vk.DeviceMemory
-// 	result := vk.AllocateMemory(pLogicalDevice, memAlloc, nil, &mem)
-// 	//vk.MapMemory(pLogicalDevice, mem, 0, vk.DeviceSize(len(data)), 0, &pData)
-// 	vk.MapMemory(pLogicalDevice, mem, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, &pData)
-// }
+	var pData unsafe.Pointer
+	memAlloc := &vk.MemoryAllocateInfo{
+		SType:           vk.StructureTypeMemoryAllocateInfo,
+		AllocationSize:  memReqs.Size,
+		MemoryTypeIndex: 0, //MemoryTypeIndex is an index into the memory type array returned from a call to vkGetPhysicalDeviceMemoryProperties()
+		// I found index of memory contaning 'MemoryPropertyDeviceLocalBit' and 'MemoryPropertyHostVisibleBit', from the output of printPhysicalDeviceMemoryProperties() function
+	}
+	var mem vk.DeviceMemory
+	result := vk.AllocateMemory(pLogicalDevice, memAlloc, nil, &mem)
+	if result != vk.Success {
+		fmt.Printf("Failed to create image buffer with error : %v", result)
+		return nil
+	}
+	vk.MapMemory(pLogicalDevice, mem, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, &pData)
+	return pData
+}
 
 func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	fmt.Println("Creating image buffer...........")
