@@ -36,7 +36,7 @@ func main() {
 	var imageFormatProperties vk.ImageFormatProperties
 	var pImageBuffer *vk.Image
 	var pHostMemory unsafe.Pointer
-	//var pDeviceMemory *vk.DeviceMemory
+	var pDeviceMemory *vk.DeviceMemory
 	var pImageView *vk.ImageView
 
 	//Create Instance
@@ -83,8 +83,8 @@ func main() {
 	// List Supported Image Format by GPU
 	//checkSupportedImageFormat(physicalDevices[physicalDeviceIndex])
 	getBufferMemoryRequirements(*pLogicalDevice, *pBuffer)
-	pHostMemory = mapHostMemoryForImage(*pLogicalDevice, memoryProperties, *pImageBuffer)
-	bindImageMemory(*pLogicalDevice, *pImageBuffer, pHostMemory)
+	pHostMemory, pDeviceMemory = mapHostMemoryForImage(*pLogicalDevice, memoryProperties, *pImageBuffer)
+	bindImageMemory(*pLogicalDevice, *pImageBuffer, pDeviceMemory)
 	pImageView = createImageView(*pLogicalDevice, *pImageBuffer)
 	//pBufferView = createBufferView(*pLogicalDevice, *pBuffer)
 	// Get the memory properties of the physical device.
@@ -184,11 +184,11 @@ func createImageView(pLogicalDevice vk.Device, imageBuffer vk.Image) *vk.ImageVi
 	return &imageView
 }
 
-func bindImageMemory(pLogicalDevice vk.Device, imageBuffer vk.Image, pHostMemory unsafe.Pointer) {
+func bindImageMemory(pLogicalDevice vk.Device, imageBuffer vk.Image, pHostMemory *vk.DeviceMemory) {
 	//var deviceMemory vk.DeviceMemory
 	//result := vk.BindImageMemory(pLogicalDevice, imageBuffer, deviceMemory, vk.DeviceSize(0))
 	fmt.Println("Binding Device Memory............")
-	result := vk.BindImageMemory(pLogicalDevice, imageBuffer, vk.DeviceMemory(pHostMemory), vk.DeviceSize(0))
+	result := vk.BindImageMemory(pLogicalDevice, imageBuffer, *pHostMemory, vk.DeviceSize(0))
 	if result != vk.Success {
 		fmt.Printf("Failed to failed to bind memory to image with error : %v", result)
 	}
@@ -220,7 +220,7 @@ func bindImageMemory(pLogicalDevice vk.Device, imageBuffer vk.Image, pHostMemory
 
 // }
 
-func mapHostMemoryForImage(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) unsafe.Pointer {
+func mapHostMemoryForImage(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) (unsafe.Pointer, *vk.DeviceMemory) {
 	var memReqs vk.MemoryRequirements
 	vk.GetImageMemoryRequirements(pLogicalDevice, imageBuffer, &memReqs)
 	memReqs.Deref()
@@ -237,10 +237,10 @@ func mapHostMemoryForImage(pLogicalDevice vk.Device, memoryProperties vk.Physica
 	result := vk.AllocateMemory(pLogicalDevice, memAlloc, nil, &mem)
 	if result != vk.Success {
 		fmt.Printf("Failed to map memory to image buffer with error : %v", result)
-		return nil
+		return nil, nil
 	}
 	vk.MapMemory(pLogicalDevice, mem, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, &pData)
-	return pData
+	return pData, &mem
 }
 
 // func mapHostMemoryForBuffer() {
