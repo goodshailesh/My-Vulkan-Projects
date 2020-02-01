@@ -38,6 +38,7 @@ func main() {
 	var pHostMemory unsafe.Pointer
 	var pDeviceMemory *vk.DeviceMemory
 	var pImageView *vk.ImageView
+	var pQueue *vk.Queue
 
 	//Create Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
@@ -86,6 +87,7 @@ func main() {
 	pHostMemory, pDeviceMemory = mapHostMemoryForImage(*pLogicalDevice, memoryProperties, *pImageBuffer)
 	bindImageMemory(*pLogicalDevice, *pImageBuffer, pDeviceMemory)
 	pImageView = createImageView(*pLogicalDevice, *pImageBuffer)
+	pQueue = getDeviceQueue(*pLogicalDevice)
 	//pBufferView = createBufferView(*pLogicalDevice, *pBuffer)
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex], &memoryProperties)
@@ -99,7 +101,7 @@ func main() {
 	fmt.Println(physicalDeviceFeatures)
 	fmt.Println(memoryProperties)
 	fmt.Println(pQueueFamilyProperties)
-	uitlPrintDeviceQueueFamilyProperties(pQueueFamilyProperties)
+	printDeviceQueueFamilyProperties(pQueueFamilyProperties)
 	fmt.Printf("%T, %v", pLogicalDevice, pLogicalDevice)
 	fmt.Println(pBuffer, dstBuffer)
 	fmt.Println(&imageFormatProperties)
@@ -108,6 +110,7 @@ func main() {
 	fmt.Println(pImageBuffer)
 	fmt.Println("Host Memory Pointer ", pHostMemory)
 	fmt.Println("Image Buffer View Pointer ", pImageView)
+	fmt.Println("Device Queue......", pQueue)
 
 	//Cleaningup code
 	vk.FreeCommandBuffers(*pLogicalDevice, *commandPool, 1, commandBuffers)
@@ -156,6 +159,13 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 		fmt.Printf("Failed to create command pool with error : %v", result)
 	}
 	return &commandPool
+}
+
+func getDeviceQueue(pLogicalDevice vk.Device) *vk.Queue {
+	fmt.Println("Getting Device Queue................")
+	var queue vk.Queue
+	vk.GetDeviceQueue(pLogicalDevice, 0, 0, &queue)
+	return &queue
 }
 
 func createImageView(pLogicalDevice vk.Device, imageBuffer vk.Image) *vk.ImageView {
@@ -477,7 +487,7 @@ func createDevice(physicalDevice vk.PhysicalDevice, physicalDeviceFeatures vk.Ph
 	return &logicalDevice
 }
 
-func uitlPrintDeviceQueueFamilyProperties(qfs []vk.QueueFamilyProperties) {
+func printDeviceQueueFamilyProperties(qfs []vk.QueueFamilyProperties) {
 	fmt.Println("Print device queue properties..............")
 	fmt.Printf("\tFound %v families\n", len(qfs))
 	for idx, qf := range qfs {
