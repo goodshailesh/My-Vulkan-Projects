@@ -63,7 +63,7 @@ func main() {
 	physicalDeviceProperties = getPhysicalDeviceProperties(physicalDevices[physicalDeviceIndex])
 	physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevices[physicalDeviceIndex])
 	memoryProperties = getPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex])
-	//printPhysicalDeviceMemoryProperties(memoryProperties)
+	printPhysicalDeviceMemoryProperties(memoryProperties)
 	pQueueFamilyProperties = getPhysicalDeviceQueueFamilyProperties(physicalDevices[physicalDeviceIndex])
 	pLogicalDevice = createDevice(physicalDevices[physicalDeviceIndex], physicalDeviceFeatures)
 	getInstanceLayerProperties()
@@ -147,21 +147,39 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 	return &commandPool
 }
 
-// func mapHostMemory(pLogicalDevice vk.Device) {
-// 	var memReqs vk.MemoryRequirements
-// 	vk.GetImageMemoryRequirements(dev, s.depth.image, &memReqs)
-// 	memReqs.Deref()
+// func mapHostMemory(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) {
+// 	// var memReqs vk.MemoryRequirements
+// 	// vk.GetImageMemoryRequirements(dev, s.depth.image, &memReqs)
+// 	// memReqs.Deref()
 
-// 	memAlloc = &vk.MemoryAllocateInfo{
+// 	// memAlloc = &vk.MemoryAllocateInfo{
+// 	// 	SType:           vk.StructureTypeMemoryAllocateInfo,
+// 	// 	AllocationSize:  memReqs.Size,
+// 	// 	MemoryTypeIndex: memTypeIndex,
+// 	// }
+// 	// var mem vk.DeviceMemory
+// 	// result := vk.AllocateMemory(dev, tex.memAlloc, nil, &mem)
+// 	// var pData unsafe.Pointer
+// 	// var hostMemory vk.DeviceMemory
+
+// 	// result := vk.MapMemory(pLogicalDevice, hostMemory, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, ppData*unsafe.Pointer)
+
+// 	var memReqs vk.MemoryRequirements
+// 	vk.GetImageMemoryRequirements(pLogicalDevice, imageBuffer, &memReqs)
+// 	memReqs.Deref()
+// 	memoryProperties.Deref()
+
+// 	var pData unsafe.Pointer
+// 	memAlloc := &vk.MemoryAllocateInfo{
 // 		SType:           vk.StructureTypeMemoryAllocateInfo,
 // 		AllocationSize:  memReqs.Size,
-// 		MemoryTypeIndex: memTypeIndex,
+// 		MemoryTypeIndex: 0, //MemoryTypeIndex is an index into the memory type array returned from a call to vkGetPhysicalDeviceMemoryProperties()
+// 		// I found index of memory contaning 'MemoryPropertyDeviceLocalBit' and 'MemoryPropertyHostVisibleBit', from the output of printPhysicalDeviceMemoryProperties() function
+// 	}
 // 	var mem vk.DeviceMemory
-// 	ret = vk.AllocateMemory(dev, tex.memAlloc, nil, &mem)
-// 	var pData unsafe.Pointer
-// 	var hostMemory vk.DeviceMemory
-
-// 	result := vk.MapMemory(pLogicalDevice, hostMemory, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, ppData*unsafe.Pointer)
+// 	result := vk.AllocateMemory(pLogicalDevice, memAlloc, nil, &mem)
+// 	//vk.MapMemory(pLogicalDevice, mem, 0, vk.DeviceSize(len(data)), 0, &pData)
+// 	vk.MapMemory(pLogicalDevice, mem, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, &pData)
 // }
 
 func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
@@ -406,10 +424,29 @@ func getPhysicalDeviceQueueFamilyProperties(physicalDevice vk.PhysicalDevice) []
 func printPhysicalDeviceMemoryProperties(memoryProperties vk.PhysicalDeviceMemoryProperties) {
 	fmt.Println("Printing Device memory properties.......................")
 	memoryProperties.Deref()
-	fmt.Printf("\t*\tMemoryTypeCount: \t\t \t\t\n", memoryProperties.MemoryTypeCount)
-	fmt.Printf("\t*\tMemoryHeapCount: \t\t \t\t\n", memoryProperties.MemoryTypeCount)
-	//MemoryTypes     [32]MemoryType
-	//MemoryHeaps     [16]MemoryHeap
+	fmt.Printf("\t*\tMemoryTypeCount: %v\t\t \t\t\n", memoryProperties.MemoryTypeCount)
+	fmt.Printf("\t*\tMemoryHeapCount: %v\t\t \t\t\n", memoryProperties.MemoryHeapCount)
+	var memPropertiesFlags = map[string]vk.MemoryPropertyFlagBits{
+		"MemoryPropertyDeviceLocalBit":     vk.MemoryPropertyDeviceLocalBit,
+		"MemoryPropertyHostVisibleBit":     vk.MemoryPropertyHostVisibleBit,
+		"MemoryPropertyHostCoherentBit":    vk.MemoryPropertyHostCoherentBit,
+		"MemoryPropertyHostCachedBit":      vk.MemoryPropertyHostCachedBit,
+		"MemoryPropertyLazilyAllocatedBit": vk.MemoryPropertyLazilyAllocatedBit,
+		"MemoryPropertyProtectedBit":       vk.MemoryPropertyProtectedBit,
+		"MemoryPropertyFlagBitsMaxEnum":    vk.MemoryPropertyFlagBitsMaxEnum,
+	}
+	fmt.Println("Total MemoryTypes Found :", len(memoryProperties.MemoryTypes))
+	for idx, memoryType := range memoryProperties.MemoryTypes { //HeapIndex
+		memoryType.Deref()
+		fmt.Println("\t* MemoryTypes index: ", idx)
+		fmt.Printf("\t\t*\tMemoryType HeapIndex: %v\t\t \t\t\n", memoryType.HeapIndex)
+		fmt.Printf("\t\t*\tMemoryType PropertyFlags: \t\t \t\t\n")
+		for key, memoryProperty := range memPropertiesFlags {
+			if memoryProperty&vk.MemoryPropertyFlagBits(memoryType.PropertyFlags) != 0x00000000 {
+				fmt.Printf("\t\t\t* Memory Property Flags: %v\t\t \t\t\n", key)
+			}
+		}
+	}
 }
 
 func getPhysicalDeviceMemoryProperties(physicalDevice vk.PhysicalDevice) vk.PhysicalDeviceMemoryProperties {
