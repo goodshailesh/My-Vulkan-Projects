@@ -32,10 +32,12 @@ func main() {
 	var pLogicalDevice *vk.Device
 	var commandPool *vk.CommandPool
 	var commandBuffers []vk.CommandBuffer
-	var srcBuffer, dstBuffer *vk.Buffer
+	var pBuffer, dstBuffer *vk.Buffer
 	var imageFormatProperties vk.ImageFormatProperties
 	var pImageBuffer *vk.Image
 	var pHostMemory unsafe.Pointer
+	//var pDeviceMemory *vk.DeviceMemory
+	var pImageView *vk.ImageView
 
 	//Create Instance
 	var layers = []string{"VK_LAYER_KHRONOS_validation\x00"}
@@ -75,13 +77,16 @@ func main() {
 	deviceWaitTillComplete(pLogicalDevice)
 	commandPool = createCommandPool(*pLogicalDevice)
 	commandBuffers = allocateCommandBuffers(*pLogicalDevice, *commandPool, 1)
-	srcBuffer = createBuffer(*pLogicalDevice)
+	pBuffer = createBuffer(*pLogicalDevice)
 	imageFormatProperties = getPhysicalDeviceImageProperties(physicalDevices[physicalDeviceIndex])
 	pImageBuffer = createImageBuffer(pLogicalDevice)
 	// List Supported Image Format by GPU
 	//checkSupportedImageFormat(physicalDevices[physicalDeviceIndex])
-	getBufferMemoryRequirements(*pLogicalDevice, *srcBuffer)
-	pHostMemory = mapHostMemory(*pLogicalDevice, memoryProperties, *pImageBuffer)
+	getBufferMemoryRequirements(*pLogicalDevice, *pBuffer)
+	pHostMemory = mapHostMemoryForImage(*pLogicalDevice, memoryProperties, *pImageBuffer)
+	bindImageMemory(*pLogicalDevice, *pImageBuffer, pHostMemory)
+	pImageView = createImageView(*pLogicalDevice, *pImageBuffer)
+	//pBufferView = createBufferView(*pLogicalDevice, *pBuffer)
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex], &memoryProperties)
 
@@ -95,12 +100,13 @@ func main() {
 	fmt.Println(pQueueFamilyProperties)
 	uitlPrintDeviceQueueFamilyProperties(pQueueFamilyProperties)
 	fmt.Printf("%T, %v", pLogicalDevice, pLogicalDevice)
-	fmt.Println(srcBuffer, dstBuffer)
+	fmt.Println(pBuffer, dstBuffer)
 	fmt.Println(&imageFormatProperties)
 	fmt.Println(commandPool)
 	fmt.Println(commandBuffers)
 	fmt.Println(pImageBuffer)
 	fmt.Println("Host Memory Pointer ", pHostMemory)
+	fmt.Println("Image Buffer View Pointer ", pImageView)
 
 	//Cleaningup code
 	vk.FreeCommandBuffers(*pLogicalDevice, *commandPool, 1, commandBuffers)
@@ -151,7 +157,70 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 	return &commandPool
 }
 
-func mapHostMemory(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) unsafe.Pointer {
+func createImageView(pLogicalDevice vk.Device, imageBuffer vk.Image) *vk.ImageView {
+	var imageView vk.ImageView
+	var imageViewCreateInfo = vk.ImageViewCreateInfo{
+		SType:    vk.StructureTypeImageViewCreateInfo,
+		Image:    imageBuffer,
+		ViewType: vk.ImageViewType2d,     // It must be compatible with Image Buffer's ImageType in ImageCreateInfo struct
+		Format:   vk.FormatR8g8b8a8Unorm, // It's same as Format in Image Buffer's ImageCreateInfo struct
+		Components: vk.ComponentMapping{
+			R: vk.ComponentSwizzleR,
+			G: vk.ComponentSwizzleG,
+			B: vk.ComponentSwizzleB,
+			A: vk.ComponentSwizzleA,
+		},
+		SubresourceRange: vk.ImageSubresourceRange{
+			AspectMask: vk.ImageAspectFlags(vk.ImageAspectColorBit),
+			LevelCount: 1,
+			LayerCount: 1,
+		},
+	}
+	result := vk.CreateImageView(pLogicalDevice, &imageViewCreateInfo, nil, &imageView)
+	if result != vk.Success {
+		fmt.Printf("Failed to map memory to image buffer with error : %v", result)
+		return nil
+	}
+	return &imageView
+}
+
+func bindImageMemory(pLogicalDevice vk.Device, imageBuffer vk.Image, pHostMemory unsafe.Pointer) {
+	//var deviceMemory vk.DeviceMemory
+	//result := vk.BindImageMemory(pLogicalDevice, imageBuffer, deviceMemory, vk.DeviceSize(0))
+	fmt.Println("Binding Device Memory............")
+	result := vk.BindImageMemory(pLogicalDevice, imageBuffer, vk.DeviceMemory(pHostMemory), vk.DeviceSize(0))
+	if result != vk.Success {
+		fmt.Printf("Failed to failed to bind memory to image with error : %v", result)
+	}
+}
+
+// func createBufferView(pLogicalDevice vk.Device, buffer vk.Buffer) *vk.BufferView {
+// 	var bufferView vk.BufferView
+// 	var bufferViewCreateInfo = vk.BufferViewCreateInfo{
+// 		SType:  vk.StructureTypeBufferViewCreateInfo,
+// 		PNext:  nil,
+// 		Buffer: buffer,
+// 		Offset: 0,
+// 		Range:  1024, //Just uing 1Kb only
+// 	}
+// 	result := vk.CreateBufferView(pLogicalDevice, &bufferViewCreateInfo, nil, &bufferView)
+// 	if result != vk.Success {
+// 		fmt.Printf("Failed to create buffer view with error : %v", result)
+// 		return nil
+// 	}
+// 	return &bufferView
+// }
+
+// func bindMemoryToBuffer() {
+// 	vertexData := linmath.ArrayFloat32([]float32{
+// 		-1, -1, 0,
+// 		1, -1, 0,
+// 		0, 1, 0,
+// 	})
+
+// }
+
+func mapHostMemoryForImage(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceMemoryProperties, imageBuffer vk.Image) unsafe.Pointer {
 	var memReqs vk.MemoryRequirements
 	vk.GetImageMemoryRequirements(pLogicalDevice, imageBuffer, &memReqs)
 	memReqs.Deref()
@@ -167,12 +236,16 @@ func mapHostMemory(pLogicalDevice vk.Device, memoryProperties vk.PhysicalDeviceM
 	var mem vk.DeviceMemory
 	result := vk.AllocateMemory(pLogicalDevice, memAlloc, nil, &mem)
 	if result != vk.Success {
-		fmt.Printf("Failed to create image buffer with error : %v", result)
+		fmt.Printf("Failed to map memory to image buffer with error : %v", result)
 		return nil
 	}
 	vk.MapMemory(pLogicalDevice, mem, vk.DeviceSize(0), vk.DeviceSize(vk.WholeSize), 0, &pData)
 	return pData
 }
+
+// func mapHostMemoryForBuffer() {
+
+// }
 
 func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 	fmt.Println("Creating image buffer...........")
@@ -182,6 +255,21 @@ func createImageBuffer(pLogicalDevice *vk.Device) *vk.Image {
 		Height: 1024,
 		Depth:  1,
 	}
+	//=================
+	// CUBE MAPS (cube map & cube-map array image)
+	//=================
+	// Set following(top 3) in ImageCreateInfo struct and below 4,5,6 in ImageViewCreateInfo struct and below 7,8,9 inside SubresourceRange section of ImageViewCreateInfo to create a Cube Map:
+	// ImageCreateInfo------------------------
+	// ArrayLayers: 6
+	// TimageType to vk.ImageType2d
+	// Flags: vk.ImageCreateCubeCompatibleBit OR
+	// ImageViewCreateInfo --------------------
+	// ViewType: vk.ImageViewTypeCubeArray
+	// ViewType: vk.ImageViewTypeCube // we create a view of the 2D array parent, but rather than creating a normal 2D (array) view of the image, we create a cube-map view
+	// layerCount : 6 #Cube maps can also form arrays of their own. This is simply a concatenation of an integer multiple of six faces, with each group of six forming a separate cube. To create a cube-map array image, set the viewType field of VkImageViewCreateInfo to VK_IMAGE_VIEW_TYPE_CUBE_ARRAY
+	// baseArrayLayer: #numberOfCubesToMake
+	// layerCount: 6, //To create a single cube, layerCount should be set to 6
+
 	var imageCreateInfo = vk.ImageCreateInfo{
 		SType:                 vk.StructureTypeImageCreateInfo,
 		ImageType:             vk.ImageType2d,
@@ -262,7 +350,7 @@ func createBuffer(device vk.Device) *vk.Buffer {
 	var bufferCreateInfo = vk.BufferCreateInfo{
 		SType:       vk.StructureTypeBufferCreateInfo,
 		Flags:       0x0,
-		Size:        1024 * 1024, // 1Mb
+		Size:        1024 * 1024, // 1Mb or vk.DeviceSize(vertexData.Sizeof()) in cause 'Usage' is set vk.BufferUsageVertexBufferBit
 		Usage:       vk.BufferUsageFlags(vk.BufferUsageTransferSrcBit | vk.BufferUsageTransferDstBit),
 		SharingMode: vk.SharingModeExclusive,
 	}
