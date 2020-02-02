@@ -76,8 +76,7 @@ func main() {
 	getInstanceExtensionProperties()
 	getDeviceExtensionProperties(physicalDevices[physicalDeviceIndex])
 	deviceWaitTillComplete(pLogicalDevice)
-	commandPool = createCommandPool(*pLogicalDevice)
-	commandBuffers = allocateCommandBuffers(*pLogicalDevice, *commandPool, 1)
+
 	pBuffer = createBuffer(*pLogicalDevice)
 	imageFormatProperties = getPhysicalDeviceImageProperties(physicalDevices[physicalDeviceIndex])
 	pImageBuffer = createImageBuffer(pLogicalDevice)
@@ -91,6 +90,11 @@ func main() {
 	//pBufferView = createBufferView(*pLogicalDevice, *pBuffer)
 	// Get the memory properties of the physical device.
 	vk.GetPhysicalDeviceMemoryProperties(physicalDevices[physicalDeviceIndex], &memoryProperties)
+
+	//Command Buffer recording
+	commandPool = createCommandPool(*pLogicalDevice)
+	commandBuffers = allocateCommandBuffers(*pLogicalDevice, *commandPool, 2)
+	beginCommandBuffer(commandBuffers)
 
 	// Verbose - Please don't remove, ignore
 	physicalDeviceProperties.Deref()
@@ -117,14 +121,18 @@ func main() {
 	vk.DestroyCommandPool(*pLogicalDevice, *commandPool, nil)
 }
 
-func recordCommandIntoCommandBuffer(commandBuffer vk.CommandBuffer) {
+func recordCommandIntoCommandBuffer(commandBuffer vk.CommandBuffer) {}
+func beginCommandBuffer(commandBuffer []vk.CommandBuffer) {
+	fmt.Println("Begin Command Buffers.................")
 	var commandBufferBeginInfo = vk.CommandBufferBeginInfo{
 		SType: vk.StructureTypeCommandBufferBeginInfo,
 		Flags: 0x0,
 	}
-	result := vk.BeginCommandBuffer(commandBuffer, &commandBufferBeginInfo)
-	if result != vk.Success {
-		fmt.Printf("Failed to begin command buffer with error : %v", result)
+	for _, cmdBuffer := range commandBuffer {
+		result := vk.BeginCommandBuffer(cmdBuffer, &commandBufferBeginInfo)
+		if result != vk.Success {
+			fmt.Printf("Failed to begin command buffer with error : %v", result)
+		}
 	}
 }
 
@@ -151,7 +159,7 @@ func createCommandPool(pLogicalDevice vk.Device) *vk.CommandPool {
 	var commandPool vk.CommandPool
 	var commandPollCreateInfo = vk.CommandPoolCreateInfo{
 		SType:            vk.StructureTypeCommandPoolCreateInfo,
-		Flags:            vk.CommandPoolCreateFlags(vk.CommandPoolCreateResetCommandBufferBit),
+		Flags:            vk.CommandPoolCreateFlags(vk.CommandPoolCreateResetCommandBufferBit | vk.CommandPoolCreateTransientBit),
 		QueueFamilyIndex: 0,
 	}
 	result := vk.CreateCommandPool(pLogicalDevice, &commandPollCreateInfo, nil, &commandPool)
@@ -458,8 +466,8 @@ func createDevice(physicalDevice vk.PhysicalDevice, physicalDeviceFeatures vk.Ph
 	deviceQueueCreateInfoSlice := []vk.DeviceQueueCreateInfo{{
 		SType: vk.StructureTypeDeviceQueueCreateInfo,
 		//QueueCount:       16,
-		QueueCount: 1,
-		//QueueFamilyIndex: 0,
+		QueueCount:       1,
+		QueueFamilyIndex: 0,
 		PQueuePriorities: []float32{1.0},
 	}}
 	//var deviceExtensions = []string{"VK_KHR_surface\x00"}
