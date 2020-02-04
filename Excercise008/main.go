@@ -140,6 +140,25 @@ func main() {
 		vk.DestroySwapchain(*pLogicalDevice, sc, nil)
 	}
 	vk.DestroySurface(instance, *pSurface, nil)
+	window.Destroy()
+	vk.DestroyImageView(*pLogicalDevice, *pImageView, nil)
+	vk.DestroyCommandPool(*pLogicalDevice, *commandPool, nil)
+	vk.DestroyInstance(instance, nil)
+	// var instance vk.Instance
+	// var physicalDevices []vk.PhysicalDevice
+	// var physicalDeviceProperties vk.PhysicalDeviceProperties
+	// var physicalDeviceFeatures vk.PhysicalDeviceFeatures
+	// var memoryProperties vk.PhysicalDeviceMemoryProperties
+	// var pQueueFamilyProperties []vk.QueueFamilyProperties
+	// var pLogicalDevice *vk.Device
+	// var commandPool *vk.CommandPool
+	// var commandBuffers []vk.CommandBuffer
+	// var pBuffer, dstBuffer *vk.Buffer
+	// var imageFormatProperties vk.ImageFormatProperties
+	// var pImageBuffer *vk.Image
+	// var pHostMemory unsafe.Pointer
+	// var pDeviceMemory *vk.DeviceMemory
+	// var pImageView *vk.ImageView
 
 }
 
@@ -622,10 +641,16 @@ func createDevice(physicalDevice vk.PhysicalDevice, physicalDeviceFeatures vk.Ph
 	//var deviceExtensions = []string{"VK_KHR_surface\x00"}
 	//var deviceExtensions = []string{"VK_KHR_swapchain\x00"}
 	//var deviceLayers = []string{"VK_LAYER_KHRONOS_validation\x00"}
+	deviceExtensions := []string{
+		"VK_KHR_swapchain\x00",
+	}
+
 	var deviceCreateInfo *vk.DeviceCreateInfo = &vk.DeviceCreateInfo{
-		SType:                vk.StructureTypeDeviceCreateInfo,
-		QueueCreateInfoCount: uint32(len(deviceQueueCreateInfoSlice)),
-		PQueueCreateInfos:    deviceQueueCreateInfoSlice,
+		SType:                   vk.StructureTypeDeviceCreateInfo,
+		QueueCreateInfoCount:    uint32(len(deviceQueueCreateInfoSlice)),
+		PQueueCreateInfos:       deviceQueueCreateInfoSlice,
+		EnabledExtensionCount:   uint32(len(deviceExtensions)),
+		PpEnabledExtensionNames: deviceExtensions,
 		// EnabledLayerCount:       uint32(len(deviceLayers)),
 		// PpEnabledLayerNames:     deviceLayers,
 		// EnabledExtensionCount:   uint32(len(deviceExtensions)),
