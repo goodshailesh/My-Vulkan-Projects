@@ -139,6 +139,8 @@ func main() {
 	for _, sc := range swapChains {
 		vk.DestroySwapchain(*pLogicalDevice, sc, nil)
 	}
+	vk.DestroySurface(instance, *pSurface, nil)
+
 }
 
 //Windows Creation related Begins
