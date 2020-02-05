@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/vulkan-go/glfw/v3.3/glfw"
 	vk "github.com/vulkan-go/vulkan"
@@ -130,25 +132,50 @@ func main() {
 		fmt.Println(fmt.Errorf("Error getting physical device surface capabilities: %v", result))
 		panic(result)
 	}
+	var formatCount uint32
+	vk.GetPhysicalDeviceSurfaceFormats(physicalDevice, surface, &formatCount, nil)
+	formats := make([]vk.SurfaceFormat, formatCount)
+	vk.GetPhysicalDeviceSurfaceFormats(physicalDevice, surface, &formatCount, formats)
+
+	log.Println("[INFO] got", formatCount, "physical device surface formats", formats[0].Format, formats[1].Format)
+
+	chosenFormat := -1
+	for i := 0; i < int(formatCount); i++ {
+		formats[i].Deref()
+		fmt.Println(formats[i].Format, ":", formats[i].ColorSpace)
+		if formats[i].Format == vk.FormatB8g8r8a8Unorm ||
+			formats[i].Format == vk.FormatR8g8b8a8Unorm {
+			chosenFormat = i
+			break
+		}
+	}
+	if chosenFormat < 0 {
+		fmt.Println("vk.GetPhysicalDeviceSurfaceFormats not found suitable format")
+	}
+	physicalDeviceSurfaceCapabilities.Deref()
 	var surfaceResuloution vk.Extent2D
 	surfaceResuloution = physicalDeviceSurfaceCapabilities.CurrentExtent
+	surfaceResuloution.Deref()
+	formats[chosenFormat].Deref()
 	width := surfaceResuloution.Width
 	height := surfaceResuloution.Height
 	var swapChainInfo = vk.SwapchainCreateInfo{
-		SType:            vk.StructureTypeSwapchainCreateInfo,
-		Surface:          surface,
-		MinImageCount:    2,
-		ImageFormat:      vk.FormatB8g8r8a8Unorm,
-		ImageColorSpace:  vk.ColorspaceSrgbNonlinear,
-		ImageExtent:      surfaceResuloution,
-		ImageArrayLayers: 1,
-		ImageUsage:       vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit),
-		ImageSharingMode: vk.SharingModeExclusive,
-		PreTransform:     vk.SurfaceTransformIdentityBit,
-		CompositeAlpha:   vk.CompositeAlphaOpaqueBit,
-		PresentMode:      vk.PresentModeMailbox,
-		Clipped:          vk.True,
-		OldSwapchain:     nil,
+		SType:                 vk.StructureTypeSwapchainCreateInfo,
+		Surface:               surface,
+		MinImageCount:         2,
+		ImageFormat:           vk.FormatB8g8r8a8Unorm,     //,
+		ImageColorSpace:       vk.ColorspaceSrgbNonlinear, //,
+		ImageExtent:           surfaceResuloution,
+		ImageArrayLayers:      1,
+		ImageUsage:            vk.ImageUsageFlags(vk.ImageUsageColorAttachmentBit),
+		ImageSharingMode:      vk.SharingModeExclusive,
+		QueueFamilyIndexCount: 1,
+		PQueueFamilyIndices:   []uint32{0},
+		PreTransform:          vk.SurfaceTransformIdentityBit,
+		CompositeAlpha:        vk.CompositeAlphaOpaqueBit,
+		PresentMode:           vk.PresentModeMailbox, //vk.PresentModeFifo, //
+		Clipped:               vk.True,
+		OldSwapchain:          vk.NullSwapchain,
 	}
 	var swapChain = make([]vk.Swapchain, 1)
 	result = vk.CreateSwapchain(logicalDevice, &swapChainInfo, nil, &swapChain[0])
@@ -156,6 +183,7 @@ func main() {
 		fmt.Println(fmt.Errorf("Error creating swapchain: %v", result))
 		panic(result)
 	}
+	fmt.Println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 	//4. Create Image and ImageView
 	//	1. Get coount of images required by swapchain
 	//  2. Create Swapchain
@@ -204,6 +232,7 @@ func main() {
 	//	1. Get first Queue
 	//  2. Create commmand pool
 	//  3. Allocate commmand buffer
+
 	var queue vk.Queue
 	vk.GetDeviceQueue(logicalDevice, 0, 0, &queue)
 	var commandPool vk.CommandPool
@@ -289,78 +318,85 @@ func main() {
 			panic(result)
 		}
 	}
-	//7. Display Output
-	//	1. Create AcquireNextImage
-	//  2. Command Buffer Begin info
-	//  3. Create Render Pass
-	//  4. Create FrameBuffer
-	var nextImageIdx uint32
-	result = vk.AcquireNextImage(logicalDevice, swapChain[0], vk.MaxUint64, vk.NullSemaphore, vk.NullFence, &nextImageIdx)
-	if result != vk.Success {
-		fmt.Println(fmt.Errorf("Failed to acquire next image : %v", result))
-		panic(result)
-	}
-	var commandBufferBeginInfo = vk.CommandBufferBeginInfo{
-		SType: vk.StructureTypeCommandBufferBeginInfo,
-		Flags: vk.CommandBufferUsageFlags(vk.CommandBufferUsageOneTimeSubmitBit),
-	}
-	vk.BeginCommandBuffer(commandBuffer[0], &commandBufferBeginInfo)
-	var clearValue = []vk.ClearValue{
-		vk.NewClearValue([]float32{1.0, 0.0, 0.0, 1.0}),
-		vk.NewClearValue([]float32{1.0, 0.0}),
-	}
-	var RenderPassBeginInfo = vk.RenderPassBeginInfo{
-		SType:       vk.StructureTypeRenderPassBeginInfo,
-		RenderPass:  renderPass,
-		Framebuffer: frameBuffers[nextImageIdx],
-	}
+	for {
+		//7. Display Output
+		//	1. Create AcquireNextImage
+		//  2. Command Buffer Begin info
+		//  3. Create Render Pass
+		//  4. Create FrameBuffer
+		var nextImageIdx uint32
+		result = vk.AcquireNextImage(logicalDevice, swapChain[0], vk.MaxUint64, vk.NullSemaphore, vk.NullFence, &nextImageIdx)
+		if result != vk.Success {
+			fmt.Println(fmt.Errorf("Failed to acquire next image : %v", result))
+			panic(result)
+		}
+		var commandBufferBeginInfo = vk.CommandBufferBeginInfo{
+			SType: vk.StructureTypeCommandBufferBeginInfo,
+			Flags: vk.CommandBufferUsageFlags(vk.CommandBufferUsageOneTimeSubmitBit),
+		}
+		vk.BeginCommandBuffer(commandBuffer[0], &commandBufferBeginInfo)
+		var clearValue = []vk.ClearValue{
+			vk.NewClearValue([]float32{1.0, 0.0, 0.0, 1.0}),
+			vk.NewClearValue([]float32{1.0, 0.0}),
+		}
+		var RenderPassBeginInfo = vk.RenderPassBeginInfo{
+			SType:       vk.StructureTypeRenderPassBeginInfo,
+			RenderPass:  renderPass,
+			Framebuffer: frameBuffers[nextImageIdx],
+		}
 
-	var start = vk.Offset2D{
-		X: 0, Y: 0,
-	}
-	var dim = vk.Extent2D{
-		Width:  width,
-		Height: height,
-	}
-	var rect = vk.Rect2D{
-		Offset: start,
-		Extent: dim,
-	}
-	RenderPassBeginInfo.RenderArea = rect
-	RenderPassBeginInfo.ClearValueCount = 2
-	RenderPassBeginInfo.PClearValues = clearValue
-	vk.CmdBeginRenderPass(commandBuffer[0], &RenderPassBeginInfo, vk.SubpassContentsBeginRange)
-	vk.CmdEndRenderPass(commandBuffer[0])
-	vk.EndCommandBuffer(commandBuffer[0])
+		var start = vk.Offset2D{
+			X: 0, Y: 0,
+		}
+		var dim = vk.Extent2D{
+			Width:  width,
+			Height: height,
+		}
+		var rect = vk.Rect2D{
+			Offset: start,
+			Extent: dim,
+		}
+		RenderPassBeginInfo.RenderArea = rect
+		RenderPassBeginInfo.ClearValueCount = 2
+		RenderPassBeginInfo.PClearValues = clearValue
+		vk.CmdBeginRenderPass(commandBuffer[0], &RenderPassBeginInfo, vk.SubpassContentsBeginRange)
+		vk.CmdEndRenderPass(commandBuffer[0])
+		vk.EndCommandBuffer(commandBuffer[0])
 
-	var renderFence = make([]vk.Fence, 1)
-	var fenceCreateInfo = vk.FenceCreateInfo{
-		SType: vk.StructureTypeFenceCreateInfo,
+		var renderFence = make([]vk.Fence, 1)
+		var fenceCreateInfo = vk.FenceCreateInfo{
+			SType: vk.StructureTypeFenceCreateInfo,
+		}
+		vk.CreateFence(logicalDevice, &fenceCreateInfo, nil, &renderFence[0])
+		var submitInfo = make([]vk.SubmitInfo, 1)
+		submitInfo[0] = vk.SubmitInfo{
+			SType:                vk.StructureTypeSubmitInfo,
+			WaitSemaphoreCount:   0,
+			PWaitSemaphores:      nil,
+			PWaitDstStageMask:    nil,
+			CommandBufferCount:   1,
+			PCommandBuffers:      commandBuffer,
+			SignalSemaphoreCount: 0,
+			PSignalSemaphores:    nil,
+		}
+		vk.QueueSubmit(queue, 1, submitInfo, renderFence[0])
+		const timeoutNano = 10 * 1000 * 1000 * 1000
+		vk.WaitForFences(logicalDevice, 1, renderFence, vk.True, timeoutNano)
+		vk.DestroyFence(logicalDevice, renderFence[0], nil)
+		var presentInfo = vk.PresentInfo{
+			SType:              vk.StructureTypePresentInfo,
+			WaitSemaphoreCount: 0,
+			PWaitSemaphores:    nil,
+			PSwapchains:        swapChain,
+			PImageIndices:      []uint32{nextImageIdx},
+			PResults:           nil,
+		}
+		vk.QueuePresent(queue, &presentInfo)
+		if window.ShouldClose() {
+			os.Exit(0)
+		}
+		glfw.PollEvents()
 	}
-	vk.CreateFence(logicalDevice, &fenceCreateInfo, nil, &renderFence[0])
-	var submitInfo = make([]vk.SubmitInfo, 1)
-	submitInfo[0] = vk.SubmitInfo{
-		SType:                vk.StructureTypeSubmitInfo,
-		WaitSemaphoreCount:   0,
-		PWaitSemaphores:      nil,
-		PWaitDstStageMask:    nil,
-		CommandBufferCount:   1,
-		PCommandBuffers:      commandBuffer,
-		SignalSemaphoreCount: 0,
-		PSignalSemaphores:    nil,
-	}
-	vk.QueueSubmit(queue, 1, submitInfo, renderFence[0])
-	vk.WaitForFences(logicalDevice, 1, renderFence, vk.True, vk.MaxUint64)
-	vk.DestroyFence(logicalDevice, renderFence[0], nil)
-	var presentInfo = vk.PresentInfo{
-		SType:              vk.StructureTypePresentInfo,
-		WaitSemaphoreCount: 0,
-		PWaitSemaphores:    nil,
-		PSwapchains:        swapChain,
-		PImageIndices:      []uint32{nextImageIdx},
-		PResults:           nil,
-	}
-	vk.QueuePresent(queue, &presentInfo)
 	//Cleanup
 	for idx := range frameBuffers {
 		vk.DestroyFramebuffer(logicalDevice, frameBuffers[idx], nil)
@@ -377,4 +413,5 @@ func main() {
 	vk.DestroySurface(instance, surface, nil)
 	vk.DestroyInstance(instance, nil)
 	window.Destroy()
+	glfw.Terminate()
 }
