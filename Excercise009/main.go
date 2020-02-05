@@ -137,12 +137,10 @@ func main() {
 	formats := make([]vk.SurfaceFormat, formatCount)
 	vk.GetPhysicalDeviceSurfaceFormats(physicalDevice, surface, &formatCount, formats)
 
-	log.Println("[INFO] got", formatCount, "physical device surface formats", formats[0].Format, formats[1].Format)
-
 	chosenFormat := -1
 	for i := 0; i < int(formatCount); i++ {
 		formats[i].Deref()
-		fmt.Println(formats[i].Format, ":", formats[i].ColorSpace)
+		log.Printf("physical device surface formats and colorspace available %v : % v\n", formats[0].Format, formats[1].Format)
 		if formats[i].Format == vk.FormatB8g8r8a8Unorm ||
 			formats[i].Format == vk.FormatR8g8b8a8Unorm {
 			chosenFormat = i
