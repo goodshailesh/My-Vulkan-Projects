@@ -152,9 +152,59 @@ func main() {
 	}
 	var swapChain vk.Swapchain
 	result = vk.CreateSwapchain(logicalDevice, &swapChainInfo, nil, &swapChain)
-	fmt.Println(swapChain)
-
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Error creating swapchain: %v", result))
+		panic(result)
+	}
+	//4. Create Image and ImageView
+	//	1. Get coount of images required by swapchain
+	//  2. Create Swapchain
+	var imageCount uint32
+	result = vk.GetSwapchainImages(logicalDevice, swapChain, &imageCount, nil)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Error getting image count from swapchain: %v", result))
+		panic(result)
+	}
+	fmt.Println("Querying Number of Images required by swapchain....", imageCount)
+	var images []vk.Image
+	images = make([]vk.Image, imageCount)
+	result = vk.GetSwapchainImages(logicalDevice, swapChain, &imageCount, images)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Error getting images for swapchain: %v", result))
+		panic(result)
+	}
+	var imageViews = make([]vk.ImageView, 2)
+	for idx := range imageViews {
+		var imageViewCreateInfo = vk.ImageViewCreateInfo{
+			SType:    vk.StructureTypeImageViewCreateInfo,
+			ViewType: vk.ImageViewType2d,
+			Format:   vk.FormatB8g8r8a8Unorm,
+			Components: vk.ComponentMapping{
+				R: vk.ComponentSwizzleR,
+				G: vk.ComponentSwizzleG,
+				B: vk.ComponentSwizzleB,
+				A: vk.ComponentSwizzleA,
+			},
+			SubresourceRange: vk.ImageSubresourceRange{
+				AspectMask:     vk.ImageAspectFlags(vk.ImageAspectColorBit),
+				BaseMipLevel:   0,
+				LevelCount:     1,
+				BaseArrayLayer: 0,
+				LayerCount:     1,
+			},
+			Image: images[idx],
+		}
+		result = vk.CreateImageView(logicalDevice, &imageViewCreateInfo, nil, &imageViews[idx])
+		if result != vk.Success {
+			fmt.Println(fmt.Errorf("Failed to create image view : %v", result))
+			panic(result)
+		}
+	}
+	fmt.Println(len(imageViews))
 	//Cleanup
+	for _, image := range images {
+		vk.DestroyImage(logicalDevice, image, nil)
+	}
 	vk.DestroySwapchain(logicalDevice, swapChain, nil)
 	vk.DestroySurface(instance, surface, nil)
 	vk.DestroyInstance(instance, nil)
