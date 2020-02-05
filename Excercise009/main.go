@@ -132,8 +132,8 @@ func main() {
 	}
 	var surfaceResuloution vk.Extent2D
 	surfaceResuloution = physicalDeviceSurfaceCapabilities.CurrentExtent
-	// width := surfaceResuloution.Width
-	// height := surfaceResuloution.Height
+	width := surfaceResuloution.Width
+	height := surfaceResuloution.Height
 	var swapChainInfo = vk.SwapchainCreateInfo{
 		SType:            vk.StructureTypeSwapchainCreateInfo,
 		Surface:          surface,
@@ -200,8 +200,104 @@ func main() {
 			panic(result)
 		}
 	}
-	fmt.Println(len(imageViews))
+	//5. Create and Allocate CommandBuffer
+	//	1. Get first Queue
+	//  2. Create commmand pool
+	//  3. Allocate commmand buffer
+	var queue vk.Queue
+	vk.GetDeviceQueue(logicalDevice, 0, 0, &queue)
+	var commandPool vk.CommandPool
+	var commandPoolCreateInfo = vk.CommandPoolCreateInfo{
+		SType:            vk.StructureTypeQueryPoolCreateInfo,
+		Flags:            vk.CommandPoolCreateFlags(vk.CommandPoolCreateResetCommandBufferBit),
+		QueueFamilyIndex: 0,
+	}
+	result = vk.CreateCommandPool(logicalDevice, &commandPoolCreateInfo, nil, &commandPool)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Failed to create command pool : %v", result))
+		panic(result)
+	}
+	var commandBuffer []vk.CommandBuffer
+	commandBuffer = make([]vk.CommandBuffer, 1)
+	var commandBufferAllocateInfo = vk.CommandBufferAllocateInfo{
+		SType:              vk.StructureTypeCommandBufferAllocateInfo,
+		CommandPool:        commandPool,
+		Level:              vk.CommandBufferLevelPrimary,
+		CommandBufferCount: 1,
+	}
+	result = vk.AllocateCommandBuffers(logicalDevice, &commandBufferAllocateInfo, commandBuffer)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Failed to allocate command buffer : %v", result))
+		panic(result)
+	}
+	//6. Create FrameBuffer
+	//	1. Create Attachment Description and Attachment Reference
+	//  2. Create Subpass
+	//  3. Create Render Pass
+	//  4. Create FrameBuffer
+	var attachmentDescriptions []vk.AttachmentDescription
+	attachmentDescriptions = make([]vk.AttachmentDescription, 1)
+	attachmentDescriptions[0] = vk.AttachmentDescription{
+		Format:         vk.FormatB8g8r8a8Unorm,
+		Samples:        vk.SampleCount1Bit,
+		LoadOp:         vk.AttachmentLoadOpClear,
+		StoreOp:        vk.AttachmentStoreOpStore,
+		StencilLoadOp:  vk.AttachmentLoadOpDontCare,
+		StencilStoreOp: vk.AttachmentStoreOpDontCare,
+		InitialLayout:  vk.ImageLayoutColorAttachmentOptimal,
+		FinalLayout:    vk.ImageLayoutColorAttachmentOptimal,
+	}
+	var attachmentReference = make([]vk.AttachmentReference, 1)
+	attachmentReference[0].Attachment = 0
+	attachmentReference[0].Layout = vk.ImageLayoutColorAttachmentOptimal
+	var subpass = make([]vk.SubpassDescription, 1)
+	subpass[0] = vk.SubpassDescription{
+		PipelineBindPoint:       vk.PipelineBindPointGraphics,
+		ColorAttachmentCount:    1,
+		PColorAttachments:       attachmentReference,
+		PDepthStencilAttachment: nil,
+	}
+	var renderPassCreateInfo = vk.RenderPassCreateInfo{
+		SType:           vk.StructureTypeRenderPassCreateInfo,
+		AttachmentCount: 1,
+		PAttachments:    attachmentDescriptions,
+		SubpassCount:    1,
+		PSubpasses:      subpass,
+	}
+	var renderPass vk.RenderPass
+	result = vk.CreateRenderPass(logicalDevice, &renderPassCreateInfo, nil, &renderPass)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Failed to create render pass : %v", result))
+		panic(result)
+	}
+	var frameBufferAttachments = make([]vk.ImageView, 1)
+	var frameBufferCreateInfo = vk.FramebufferCreateInfo{
+		SType:           vk.StructureTypeFramebufferCreateInfo,
+		PNext:           nil,
+		RenderPass:      renderPass,
+		AttachmentCount: 1,
+		PAttachments:    frameBufferAttachments,
+		Width:           width,
+		Height:          height,
+		Layers:          1,
+	}
+	var frameBuffers = make([]vk.Framebuffer, 2)
+	for idx := range frameBuffers {
+		result = vk.CreateFramebuffer(logicalDevice, &frameBufferCreateInfo, nil, &frameBuffers[idx])
+		if result != vk.Success {
+			fmt.Println(fmt.Errorf("Failed to create frame buffers : %v", result))
+			panic(result)
+		}
+	}
 	//Cleanup
+	for idx := range frameBuffers {
+		vk.DestroyFramebuffer(logicalDevice, frameBuffers[idx], nil)
+	}
+	vk.DestroyRenderPass(logicalDevice, renderPass, nil)
+	vk.DestroyCommandPool(logicalDevice, commandPool, nil)
+	for _, imageView := range imageViews {
+		vk.DestroyImageView(logicalDevice, imageView, nil)
+	}
 	for _, image := range images {
 		vk.DestroyImage(logicalDevice, image, nil)
 	}
