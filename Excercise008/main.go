@@ -142,7 +142,10 @@ func main() {
 	vk.DestroySurface(instance, *pSurface, nil)
 	window.Destroy()
 	vk.DestroyImageView(*pLogicalDevice, *pImageView, nil)
-	vk.DestroyCommandPool(*pLogicalDevice, *commandPool, nil)
+	//vk.DestroyCommandPool(*pLogicalDevice, *commandPool, nil)
+
+	vk.DestroyBuffer(*pLogicalDevice, *pBuffer, nil)
+	vk.DestroyDevice(*pLogicalDevice, nil)
 	vk.DestroyInstance(instance, nil)
 	// var instance vk.Instance
 	// var physicalDevices []vk.PhysicalDevice
@@ -245,6 +248,8 @@ func getPhysicalDeviceSurfaceFormats(physicalDevice vk.PhysicalDevice, surface v
 	// }
 }
 
+//func getPhysicalDeviceSurfaceSupport(physicalDevice PhysicalDevice) {}
+
 func createSwapChain(logicalDevice vk.Device, surface *vk.Surface, surfaceCapabilities vk.SurfaceCapabilities, formats []vk.SurfaceFormat) []vk.Swapchain {
 	fmt.Println("Creating swap chain..............")
 	queueFamily := []uint32{0}
@@ -266,6 +271,8 @@ func createSwapChain(logicalDevice vk.Device, surface *vk.Surface, surfaceCapabi
 		PresentMode:           vk.PresentModeFifo,
 		OldSwapchain:          vk.NullSwapchain,
 		Clipped:               vk.False,
+		//CompositeAlpha:        vk.CompositeAlphaFlagBits(vk.CompositeAlphaOpaqueBit | vk.CompositeAlphaInheritBit),
+		CompositeAlpha: vk.CompositeAlphaOpaqueBit,
 	}
 	result := vk.CreateSwapchain(logicalDevice, &swapChainCreateInfo, nil, &swapChains[0])
 	if result != vk.Success {
