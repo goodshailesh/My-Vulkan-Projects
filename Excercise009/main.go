@@ -124,9 +124,6 @@ func main() {
 	//3. Create SwapChain
 	//	1. Get surface capabilities
 	//  2. Create Swapchain
-	//  3. Get MemoryProprties of Selected Physical Device
-	//	4. Get Device Extension Properties
-	//	5. Create Logical Device
 	var physicalDeviceSurfaceCapabilities vk.SurfaceCapabilities
 	result = vk.GetPhysicalDeviceSurfaceCapabilities(physicalDevice, surface, &physicalDeviceSurfaceCapabilities)
 	if result != vk.Success {
