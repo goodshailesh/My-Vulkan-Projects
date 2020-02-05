@@ -150,8 +150,8 @@ func main() {
 		Clipped:          vk.True,
 		OldSwapchain:     nil,
 	}
-	var swapChain vk.Swapchain
-	result = vk.CreateSwapchain(logicalDevice, &swapChainInfo, nil, &swapChain)
+	var swapChain = make([]vk.Swapchain, 1)
+	result = vk.CreateSwapchain(logicalDevice, &swapChainInfo, nil, &swapChain[0])
 	if result != vk.Success {
 		fmt.Println(fmt.Errorf("Error creating swapchain: %v", result))
 		panic(result)
@@ -160,7 +160,7 @@ func main() {
 	//	1. Get coount of images required by swapchain
 	//  2. Create Swapchain
 	var imageCount uint32
-	result = vk.GetSwapchainImages(logicalDevice, swapChain, &imageCount, nil)
+	result = vk.GetSwapchainImages(logicalDevice, swapChain[0], &imageCount, nil)
 	if result != vk.Success {
 		fmt.Println(fmt.Errorf("Error getting image count from swapchain: %v", result))
 		panic(result)
@@ -168,7 +168,7 @@ func main() {
 	fmt.Println("Querying Number of Images required by swapchain....", imageCount)
 	var images []vk.Image
 	images = make([]vk.Image, imageCount)
-	result = vk.GetSwapchainImages(logicalDevice, swapChain, &imageCount, images)
+	result = vk.GetSwapchainImages(logicalDevice, swapChain[0], &imageCount, images)
 	if result != vk.Success {
 		fmt.Println(fmt.Errorf("Error getting images for swapchain: %v", result))
 		panic(result)
@@ -289,6 +289,78 @@ func main() {
 			panic(result)
 		}
 	}
+	//7. Display Output
+	//	1. Create AcquireNextImage
+	//  2. Command Buffer Begin info
+	//  3. Create Render Pass
+	//  4. Create FrameBuffer
+	var nextImageIdx uint32
+	result = vk.AcquireNextImage(logicalDevice, swapChain[0], vk.MaxUint64, vk.NullSemaphore, vk.NullFence, &nextImageIdx)
+	if result != vk.Success {
+		fmt.Println(fmt.Errorf("Failed to acquire next image : %v", result))
+		panic(result)
+	}
+	var commandBufferBeginInfo = vk.CommandBufferBeginInfo{
+		SType: vk.StructureTypeCommandBufferBeginInfo,
+		Flags: vk.CommandBufferUsageFlags(vk.CommandBufferUsageOneTimeSubmitBit),
+	}
+	vk.BeginCommandBuffer(commandBuffer[0], &commandBufferBeginInfo)
+	var clearValue = []vk.ClearValue{
+		vk.NewClearValue([]float32{1.0, 0.0, 0.0, 1.0}),
+		vk.NewClearValue([]float32{1.0, 0.0}),
+	}
+	var RenderPassBeginInfo = vk.RenderPassBeginInfo{
+		SType:       vk.StructureTypeRenderPassBeginInfo,
+		RenderPass:  renderPass,
+		Framebuffer: frameBuffers[nextImageIdx],
+	}
+
+	var start = vk.Offset2D{
+		X: 0, Y: 0,
+	}
+	var dim = vk.Extent2D{
+		Width:  width,
+		Height: height,
+	}
+	var rect = vk.Rect2D{
+		Offset: start,
+		Extent: dim,
+	}
+	RenderPassBeginInfo.RenderArea = rect
+	RenderPassBeginInfo.ClearValueCount = 2
+	RenderPassBeginInfo.PClearValues = clearValue
+	vk.CmdBeginRenderPass(commandBuffer[0], &RenderPassBeginInfo, vk.SubpassContentsBeginRange)
+	vk.CmdEndRenderPass(commandBuffer[0])
+	vk.EndCommandBuffer(commandBuffer[0])
+
+	var renderFence = make([]vk.Fence, 1)
+	var fenceCreateInfo = vk.FenceCreateInfo{
+		SType: vk.StructureTypeFenceCreateInfo,
+	}
+	vk.CreateFence(logicalDevice, &fenceCreateInfo, nil, &renderFence[0])
+	var submitInfo = make([]vk.SubmitInfo, 1)
+	submitInfo[0] = vk.SubmitInfo{
+		SType:                vk.StructureTypeSubmitInfo,
+		WaitSemaphoreCount:   0,
+		PWaitSemaphores:      nil,
+		PWaitDstStageMask:    nil,
+		CommandBufferCount:   1,
+		PCommandBuffers:      commandBuffer,
+		SignalSemaphoreCount: 0,
+		PSignalSemaphores:    nil,
+	}
+	vk.QueueSubmit(queue, 1, submitInfo, renderFence[0])
+	vk.WaitForFences(logicalDevice, 1, renderFence, vk.True, vk.MaxUint64)
+	vk.DestroyFence(logicalDevice, renderFence[0], nil)
+	var presentInfo = vk.PresentInfo{
+		SType:              vk.StructureTypePresentInfo,
+		WaitSemaphoreCount: 0,
+		PWaitSemaphores:    nil,
+		PSwapchains:        swapChain,
+		PImageIndices:      []uint32{nextImageIdx},
+		PResults:           nil,
+	}
+	vk.QueuePresent(queue, &presentInfo)
 	//Cleanup
 	for idx := range frameBuffers {
 		vk.DestroyFramebuffer(logicalDevice, frameBuffers[idx], nil)
@@ -301,7 +373,7 @@ func main() {
 	for _, image := range images {
 		vk.DestroyImage(logicalDevice, image, nil)
 	}
-	vk.DestroySwapchain(logicalDevice, swapChain, nil)
+	vk.DestroySwapchain(logicalDevice, swapChain[0], nil)
 	vk.DestroySurface(instance, surface, nil)
 	vk.DestroyInstance(instance, nil)
 	window.Destroy()
